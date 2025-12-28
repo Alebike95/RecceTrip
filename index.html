@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster Pro</title>
+    <title>Rally TripMaster v3</title>
     <style>
-        /* STILE GRAFICO (CSS) */
+        /* --- STILE GRAFICO (CSS) --- */
         :root {
             --bg-color: #000000;
-            --text-main: #00FF00; /* Verde Matrix */
-            --text-dim: #888888;
+            --text-main: #00FF00;
+            --text-dim: #666666;
             --highlight: #FFFFFF;
             --alert: #FF0000;
         }
@@ -20,17 +20,17 @@
             font-family: 'Courier New', Courier, monospace;
             margin: 0;
             padding: 0;
-            /* 100dvh aiuta a gestire la barra indirizzi mobile */
-            height: 100dvh; 
+            height: 100dvh; /* dvh per adattarsi ai browser mobile */
             width: 100vw;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            user-select: none; /* Previene selezione testo */
+            user-select: none;
             -webkit-user-select: none;
+            touch-action: manipulation; /* Migliora risposta touch */
         }
 
-        /* BARRA SUPERIORE */
+        /* TOP BAR */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -38,32 +38,36 @@
             padding: 10px 20px;
             height: 25%;
             box-sizing: border-box;
+            background-color: #050505;
         }
 
         .small-box {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            z-index: 10; /* Per essere cliccabile */
+            z-index: 10;
         }
 
-        /* TRIP B (Alto SX) - Cliccabile/Premibile */
+        /* TRIP B (Alto SX) */
         #tripB-container {
             align-items: flex-start;
             cursor: pointer;
             position: relative;
+            min-width: 120px; /* Area tocco più grande */
         }
 
         .label {
-            font-size: 3vh; /* Scala con l'altezza schermo */
+            font-size: 2.5vh;
             color: var(--text-dim);
             font-weight: bold;
+            letter-spacing: 2px;
         }
 
         .value-small {
             font-size: 6vh;
             font-weight: bold;
             color: var(--text-main);
+            font-variant-numeric: tabular-nums; /* Numeri a larghezza fissa */
         }
 
         /* AREA CENTRALE (Trip A) */
@@ -73,89 +77,104 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            border-top: 1px solid #333;
-            border-bottom: 1px solid #333;
+            border-top: 2px solid #222;
+            border-bottom: 2px solid #222;
             position: relative;
             background-color: #000;
-            transition: background-color 0.1s;
         }
 
         .main-trip-value {
-            font-size: 25vh; /* Enorme, scala con l'altezza */
-            line-height: 1;
+            font-size: 25vh;
+            line-height: 0.9;
             font-weight: bold;
             color: var(--highlight);
+            font-variant-numeric: tabular-nums;
         }
 
         .main-trip-unit {
-            font-size: 4vh;
+            font-size: 3vh;
             color: var(--text-dim);
-            margin-top: -2vh;
+            margin-top: 1vh;
+            letter-spacing: 5px;
         }
 
         /* PULSANTE INFO (Basso DX) */
         .info-btn {
             position: absolute;
-            bottom: 15px;
-            right: 15px;
-            width: 40px;
-            height: 40px;
-            border: 1px solid #444;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: #111;
+            border: 1px solid #333;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: #666;
+            color: #888;
             font-weight: bold;
             cursor: pointer;
             z-index: 50;
+            font-size: 1.5rem;
         }
 
-        /* PANNELLO DIAGNOSTICA (Nascosto) */
+        /* PANNELLO DIAGNOSTICA */
         .debug-panel {
-            display: none; /* Nascosto di default */
+            display: none;
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.95);
+            background: rgba(0,0,0,0.98);
             z-index: 100;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            text-align: left;
+            justify-content: flex-start;
+            align-items: flex-start;
+            padding: 30px;
+            overflow-y: auto;
         }
         
         .debug-row {
-            font-size: 1.2rem;
-            margin: 10px 0;
+            font-size: 1rem;
+            margin: 8px 0;
             border-bottom: 1px solid #333;
             width: 100%;
             padding-bottom: 5px;
+            font-family: monospace;
+            color: #ccc;
         }
 
-        .btn-close {
-            margin-top: 20px;
-            padding: 10px 30px;
-            background: #333;
+        .btn-debug {
+            margin-top: 15px;
+            padding: 15px;
+            width: 100%;
+            background: #222;
             color: #fff;
-            border: none;
+            border: 1px solid #444;
             font-size: 1.2rem;
+            text-align: center;
         }
 
-        /* BARRA DI PROGRESSO RESET (Trip B) */
+        /* BARRA DI PROGRESSO RESET */
         .reset-progress {
             position: absolute;
-            bottom: 0;
+            bottom: -5px;
             left: 0;
-            height: 5px;
+            height: 4px;
             background-color: var(--alert);
             width: 0%;
-            transition: width 0.1s linear;
         }
 
-        /* Flash visivo */
-        .flash { background-color: #222222 !important; }
-        .flash-red { background-color: #330000 !important; }
+        /* Feedback visivi */
+        .flash { animation: flash-anim 0.2s; }
+        .flash-red { animation: flash-red-anim 0.3s; }
+
+        @keyframes flash-anim {
+            0% { background-color: #333; }
+            100% { background-color: #000; }
+        }
+        @keyframes flash-red-anim {
+            0% { background-color: #500; }
+            100% { background-color: #000; }
+        }
 
     </style>
 </head>
@@ -174,7 +193,7 @@
         </div>
     </div>
 
-    <div class="main-trip-container" id="click-area" onclick="resetTripA()">
+    <div class="main-trip-container" id="click-area" onclick="handleTapResetA()">
         <span class="main-trip-value" id="tripA-val">0</span>
         <span class="main-trip-unit">METRI</span>
     </div>
@@ -182,43 +201,44 @@
     <div class="info-btn" onclick="toggleDebug()">i</div>
 
     <div class="debug-panel" id="debug-panel">
-        <h2 style="color:white; margin-bottom:20px;">DIAGNOSTICA GPS</h2>
-        <div class="debug-row">HZ (Aggiornamenti/sec): <span id="debug-hz" style="color:yellow">0</span></div>
-        <div class="debug-row">Precisione: <span id="debug-acc">0</span> m</div>
-        <div class="debug-row">Lat: <span id="debug-lat">0</span></div>
-        <div class="debug-row">Lon: <span id="debug-lon">0</span></div>
-        <div class="debug-row">Status: <span id="debug-status">In attesa...</span></div>
+        <h2 style="color:white; margin-bottom:10px;">DIAGNOSTICA GPS v3.0</h2>
         
-        <button class="btn-close" onclick="goFullscreen()">ATTIVA FULLSCREEN</button>
-        <button class="btn-close" onclick="toggleDebug()">CHIUDI</button>
+        <div class="debug-row">Sorgente: <span id="dbg-hz" style="color:yellow">Calc...</span> Hz</div>
+        <div class="debug-row">Precisione: <span id="dbg-acc">--</span> m</div>
+        <div class="debug-row">Speed (GPS): <span id="dbg-spd">--</span> m/s</div>
+        <div class="debug-row">Delta Dist: <span id="dbg-dist" style="color:cyan">0.00</span> m</div>
+        <div class="debug-row">Stato: <span id="dbg-status">Attesa...</span></div>
+        <div class="debug-row" style="font-size:0.8rem; color:#666">
+            Ultimo Fix: <span id="dbg-time">--</span>
+        </div>
+
+        <div class="btn-debug" onclick="goFullscreen()">FULLSCREEN</div>
+        <div class="btn-debug" onclick="location.reload()">RICARICA PAGINA</div>
+        <div class="btn-debug" style="background:#400" onclick="toggleDebug()">CHIUDI</div>
     </div>
 
     <script>
-        // --- VARIABILI ---
-        let tripA = 0; // Metri
-        let tripB = 0; // Metri (visualizzati come km)
-        let prevLat = null;
-        let prevLon = null;
-        let lastFixTime = 0;
-        let updateCounts = []; // Per calcolare Hz
+        // --- STATO DEL SISTEMA ---
+        let tripA = 0.0; // Float per precisione, mostrato intero
+        let tripB = 0.0;
+        let lastLat = null;
+        let lastLon = null;
         
+        // Debug vars
+        let lastFixTime = 0;
+        let updateTimestamps = [];
+
         // Elementi DOM
         const elTripA = document.getElementById('tripA-val');
         const elTripB = document.getElementById('tripB-val');
         const elSpeed = document.getElementById('speed-val');
-        const elContainer = document.getElementById('click-area');
         const elResetBar = document.getElementById('reset-bar');
         
-        // Elementi Debug
-        const elDebugHz = document.getElementById('debug-hz');
-        const elDebugAcc = document.getElementById('debug-acc');
-        const elDebugLat = document.getElementById('debug-lat');
-        const elDebugLon = document.getElementById('debug-lon');
-        const elDebugStatus = document.getElementById('debug-status');
-
-        // --- GESTIONE GPS ---
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371000; 
+        // --- FUNZIONI MATEMATICHE ---
+        
+        // Calcolo distanza (Haversine Formula) - Restituisce Metri
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Raggio Terra
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -227,164 +247,191 @@
             return R * c;
         }
 
-        function onLocationSuccess(pos) {
+        // --- GESTIONE GPS ---
+        function handlePosition(pos) {
             const now = Date.now();
             const crd = pos.coords;
 
-            // Calcolo HZ (Aggiornamenti nell'ultimo secondo)
-            updateCounts.push(now);
-            updateCounts = updateCounts.filter(t => t > now - 1000);
-            const hz = updateCounts.length;
-
-            // Aggiorna Debug Panel
-            elDebugHz.innerText = hz;
-            if(hz > 2) { elDebugHz.style.color = "#00FF00"; } // Verde se > 2Hz (probabile antenna esterna)
-            else { elDebugHz.style.color = "red"; } // Rosso se lento (GPS interno)
+            // 1. Calcolo Hz (Frequenza)
+            updateTimestamps.push(now);
+            // Tieni solo gli ultimi 2 secondi per la media
+            updateTimestamps = updateTimestamps.filter(t => t > now - 2000);
+            const hz = (updateTimestamps.length / 2).toFixed(1);
             
-            elDebugAcc.innerText = crd.accuracy.toFixed(1);
-            elDebugLat.innerText = crd.latitude.toFixed(5);
-            elDebugLon.innerText = crd.longitude.toFixed(5);
-            elDebugStatus.innerText = "FIX OK";
+            // 2. Aggiorna Debug
+            document.getElementById('dbg-hz').innerText = hz;
+            document.getElementById('dbg-hz').style.color = (hz > 5) ? '#00FF00' : '#FFFF00';
+            document.getElementById('dbg-acc').innerText = crd.accuracy ? crd.accuracy.toFixed(1) : '--';
+            document.getElementById('dbg-spd').innerText = crd.speed ? crd.speed.toFixed(2) : '0.00';
+            document.getElementById('dbg-time').innerText = new Date().toLocaleTimeString();
+            document.getElementById('dbg-status').innerText = "Running";
 
-            // Velocità
-            if (crd.speed !== null && crd.speed >= 0) {
-                elSpeed.innerText = (crd.speed * 3.6).toFixed(0);
-            }
+            // 3. Visualizzazione Velocità (km/h)
+            // Se speed è null (alcuni telefoni), calcolalo non possiamo, mettiamo 0
+            let speedKmh = (crd.speed || 0) * 3.6;
+            elSpeed.innerText = speedKmh.toFixed(0);
 
-            // Calcolo Distanza
-            if (prevLat != null && crd.accuracy < 25) { // Filtro precisione 25m
-                const dist = getDistance(prevLat, prevLon, crd.latitude, crd.longitude);
-                // Filtro "Anti-Jitter": conta solo se spostamento > 0.5 metri
-                if (dist > 0.5) {
+            // 4. CALCOLO DISTANZA (CORE LOGIC)
+            if (lastLat !== null && lastLon !== null) {
+                // Calcola distanza grezza
+                let dist = calculateDistance(lastLat, lastLon, crd.latitude, crd.longitude);
+                
+                // Debug della distanza grezza
+                document.getElementById('dbg-dist').innerText = dist.toFixed(3);
+
+                // --- NUOVA LOGICA DI FILTRO v3.0 ---
+                // Problema precedente: a 10Hz dist è piccola (es. 0.3m) e veniva scartata.
+                // Nuova regola: 
+                // Accettiamo il movimento se la velocità GPS è > 1 km/h (ci stiamo muovendo sicuro)
+                // OPPURE se la distanza è > 5 metri (salto di posizione / fix iniziale)
+                // Se siamo fermi (speed ~ 0), ignoriamo i micro spostamenti (drift)
+                
+                let isValidMove = false;
+
+                // Caso A: Il GPS ci dice che abbiamo velocità (più affidabile del delta posizione)
+                // 0.28 m/s = 1 km/h. Usiamo 0.8 km/h come soglia minima di movimento.
+                if (crd.speed && crd.speed > 0.22) {
+                    isValidMove = true;
+                }
+                // Caso B: Non c'è velocità o è bassa, ma ci siamo spostati tanto (es. tunnel)
+                else if (dist > 10.0) { 
+                     // Salto troppo grosso in 0.1s? No, accettiamo per recupero fix
+                     isValidMove = true;
+                }
+                // Caso C: Movimento lento (es. manovra). 
+                // Se la precisione è ottima (<5m) e dist > 0.1m, accumula
+                else if (crd.accuracy < 10 && dist > 0.05) {
+                    isValidMove = true;
+                }
+
+                if (isValidMove) {
                     tripA += dist;
                     tripB += dist;
-                    updateScreen();
+                    updateUI();
+                } else {
+                    document.getElementById('dbg-dist').innerText += " (Ignored)";
                 }
             }
 
-            prevLat = crd.latitude;
-            prevLon = crd.longitude;
+            // Salva posizione precedente
+            lastLat = crd.latitude;
+            lastLon = crd.longitude;
         }
 
-        function onLocationError(err) {
-            elDebugStatus.innerText = "ERRORE: " + err.message;
-            elDebugStatus.style.color = "red";
+        function handleError(err) {
+            document.getElementById('dbg-status').innerText = "ERR: " + err.code + " - " + err.message;
+            document.getElementById('dbg-status').style.color = "red";
         }
 
-        function updateScreen() {
+        function updateUI() {
             elTripA.innerText = Math.floor(tripA);
             elTripB.innerText = (tripB / 1000).toFixed(2);
         }
 
-        // Avvio GPS
-        navigator.geolocation.watchPosition(onLocationSuccess, onLocationError, {
+        // --- INIZIO MONITORAGGIO ---
+        const geoOptions = {
             enableHighAccuracy: true,
-            timeout: 2000,
-            maximumAge: 0 // Forza dato fresco, non usare cache
-        });
+            timeout: 5000,
+            maximumAge: 0 // Importante: non usare cache
+        };
+        
+        navigator.geolocation.watchPosition(handlePosition, handleError, geoOptions);
 
-        // --- LOGICA DI RESET ---
 
-        // 1. Reset Trip A (Tocco Singolo / Pulsante BT Click)
-        function resetTripA() {
+        // --- GESTIONE INPUT (Touch & Bluetooth) ---
+
+        // RESET TRIP A
+        function handleTapResetA() {
             tripA = 0;
-            updateScreen();
-            flashScreen(elContainer, 'flash');
+            updateUI();
+            flashElement(document.querySelector('.main-trip-container'), 'flash');
         }
 
-        // 2. Reset Totale (Trip B + A)
-        function resetAll() {
-            tripA = 0;
-            tripB = 0;
-            updateScreen();
-            flashScreen(document.body, 'flash-red'); // Flash rosso su tutto
-        }
-
-        function flashScreen(element, className) {
-            element.classList.add(className);
-            setTimeout(() => element.classList.remove(className), 150);
-        }
-
-        // --- GESTIONE TOCCO PROLUNGATO (TOUCHSCREEN) ---
+        // RESET TOTALE (Trip B) - Logica Pressione 3 secondi
         let pressTimer;
-        const tripBContainer = document.getElementById('tripB-container');
+        const btnB = document.getElementById('tripB-container');
 
-        tripBContainer.addEventListener('touchstart', function(e) {
-            e.preventDefault(); // Evita zoom o altro
-            elResetBar.style.width = "0%";
+        btnB.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            elResetBar.style.width = "100%";
             elResetBar.style.transition = "width 3s linear";
             
-            // Avvia animazione barra
-            requestAnimationFrame(() => { elResetBar.style.width = "100%"; });
-
             pressTimer = setTimeout(() => {
-                resetAll();
+                // Azione dopo 3 secondi
+                tripA = 0;
+                tripB = 0;
+                updateUI();
+                flashElement(document.body, 'flash-red');
                 elResetBar.style.width = "0%";
-            }, 3000); // 3 secondi
+                elResetBar.style.transition = "none";
+            }, 3000);
         });
 
-        tripBContainer.addEventListener('touchend', function() {
+        btnB.addEventListener('touchend', () => {
             clearTimeout(pressTimer);
-            elResetBar.style.transition = "width 0.2s"; // Ritorno veloce
+            elResetBar.style.transition = "width 0.2s ease-out";
             elResetBar.style.width = "0%";
         });
 
+        // GESTIONE PULSANTE BLUETOOTH
+        let keyClicks = 0;
+        let keyTimer;
 
-        // --- GESTIONE PULSANTE BLUETOOTH ESTERNO ---
-        // Logica: Click singolo -> Reset A
-        // Logica: 3 Click rapidi (< 1 sec) -> Reset B (Totale)
-        
-        let clickCount = 0;
-        let clickTimer = null;
-
-        window.addEventListener('keydown', function(event) {
-            const key = event.key;
-            // Intercetta Enter, Volume, Spazio, etc.
-            if (key === "Enter" || key.includes("Volume") || key === " ") {
+        window.addEventListener('keydown', (e) => {
+            // Intercetta tasti comuni dei telecomandi
+            if (["Enter", " ", "VolumeUp", "VolumeDown", "AudioVolumeUp"].includes(e.key)) {
                 
-                clickCount++;
+                keyClicks++;
+                clearTimeout(keyTimer);
 
-                if (clickCount === 1) {
-                    // Primo click: Aspetta un attimo per vedere se ce ne sono altri
-                    clickTimer = setTimeout(() => {
-                        // Se è passato il tempo e i click sono 1, resetta A
-                        if (clickCount === 1) {
-                            resetTripA();
-                        }
-                        clickCount = 0;
-                    }, 400); // Ritardo per rilevare doppio/triplo click
-                } else if (clickCount >= 3) {
-                    // Se arriviamo a 3 click rapidi
-                    clearTimeout(clickTimer);
-                    resetAll();
-                    clickCount = 0;
-                }
+                // Aspetta 400ms per vedere se arrivano altri click
+                keyTimer = setTimeout(() => {
+                    if (keyClicks >= 3) {
+                        // 3 CLICK = RESET TOTALE
+                        tripA = 0; tripB = 0;
+                        flashElement(document.body, 'flash-red');
+                    } else {
+                        // 1 o 2 CLICK = RESET TRIP A
+                        tripA = 0;
+                        flashElement(document.querySelector('.main-trip-container'), 'flash');
+                    }
+                    updateUI();
+                    keyClicks = 0;
+                }, 400);
             }
         });
 
-        // --- FUNZIONI EXTRA ---
+        function flashElement(el, cls) {
+            el.classList.remove(cls);
+            void el.offsetWidth; // Trigger reflow
+            el.classList.add(cls);
+        }
+
         function toggleDebug() {
-            const panel = document.getElementById('debug-panel');
-            panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
+            const p = document.getElementById('debug-panel');
+            p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
         }
 
         function goFullscreen() {
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen();
-            } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
-                document.documentElement.webkitRequestFullscreen();
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Errore fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
             }
         }
 
-        // Wake Lock (Tieni schermo acceso)
-        async function wakeLock() {
+        // Wake Lock
+        async function requestWakeLock() {
             try {
-                if ('wakeLock' in navigator) {
-                    await navigator.wakeLock.request('screen');
-                }
-            } catch (err) { console.log(err); }
+                if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
+            } catch (e) { console.log(e); }
         }
-        wakeLock();
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') requestWakeLock();
+        });
+        requestWakeLock();
 
     </script>
 </body>
