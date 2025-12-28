@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster v5</title>
+    <title>Rally TripMaster v6</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -26,48 +26,54 @@
             touch-action: manipulation;
         }
 
-        /* BARRA SUPERIORE */
+        /* BARRA SUPERIORE BILANCIATA */
         .top-bar {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center; /* Allinea i box verticalmente */
             padding: 10px 20px;
-            height: 30%;
+            height: 35%; /* Leggermente più alta per far stare bene il valore rosso */
             box-sizing: border-box;
             background-color: #080808;
         }
 
-        #tripB-container {
-            display: flex; flex-direction: column;
-            cursor: pointer; position: relative;
+        /* Box contenitori simmetrici */
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            flex: 1;
         }
 
-        .right-stats {
-            display: flex; flex-direction: column;
+        .stat-box.right {
             align-items: flex-end;
             text-align: right;
         }
 
         .label {
-            font-size: 2.5vh;
+            font-size: 2.2vh;
             color: var(--text-dim);
             font-weight: bold;
+            letter-spacing: 1px;
+            height: 2.5vh;
         }
 
         .value-small {
-            font-size: 8vh;
+            font-size: 9vh; /* Allineati stessa dimensione */
             font-weight: bold;
             color: var(--text-main);
-            line-height: 1;
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
         }
 
-        /* Valore ultimo reset (senza L: e più grande) */
+        /* Valore ultimo reset - GIGANTE */
         #last-reset-display {
-            font-size: 7vh; /* Incrementato */
+            font-size: 15vh; /* 2.5 volte più grande della v5 */
             color: var(--last-val);
             font-weight: bold;
+            line-height: 1;
             margin-top: 5px;
-            min-height: 7vh;
+            min-height: 15vh;
         }
 
         /* AREA CENTRALE */
@@ -88,29 +94,29 @@
             font-variant-numeric: tabular-nums;
         }
 
+        /* Ottimizzazione Orizzontale */
         @media (orientation: landscape) {
-            .main-trip-value { font-size: 48vh !important; }
-            .value-small { font-size: 11vh; }
-            #last-reset-display { font-size: 9vh; }
+            .main-trip-value { font-size: 45vh !important; }
+            .value-small { font-size: 10vh; }
+            #last-reset-display { font-size: 16vh; }
+            .top-bar { height: 40%; }
         }
 
         .main-trip-unit {
-            font-size: 3.5vh;
+            font-size: 3vh;
             color: var(--text-dim);
             letter-spacing: 10px;
-            margin-top: 1vh;
         }
 
-        /* PULSANTE INFO */
+        /* PULSANTE INFO E DEBUG */
         .info-btn {
             position: absolute; bottom: 20px; right: 20px;
-            width: 50px; height: 50px;
+            width: 45px; height: 45px;
             background: #111; border: 1px solid #333; border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
-            color: #888; z-index: 50; font-size: 1.5rem;
+            color: #555; z-index: 50;
         }
 
-        /* PANNELLO DIAGNOSTICA COMPLETO (Ripristinato) */
         .debug-panel {
             display: none; position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -120,19 +126,15 @@
         }
         
         .debug-row {
-            font-size: 1rem;
-            margin: 6px 0;
-            border-bottom: 1px solid #333;
-            width: 100%;
-            padding-bottom: 4px;
-            font-family: monospace;
-            color: #ccc;
+            font-size: 0.9rem; margin: 5px 0;
+            border-bottom: 1px solid #333; width: 100%;
+            padding-bottom: 3px; font-family: monospace; color: #ccc;
         }
 
         .btn-debug {
-            margin-top: 15px; padding: 15px;
+            margin-top: 10px; padding: 12px;
             background: #222; color: #fff; border: 1px solid #444;
-            font-size: 1.1rem; text-align: center; width: 100%;
+            font-size: 1rem; text-align: center; width: 100%;
         }
 
         .reset-progress {
@@ -147,17 +149,15 @@
 <body>
 
     <div class="top-bar">
-        <div id="tripB-container">
+        <div class="stat-box" id="tripB-container">
             <span class="label">TRIP B (KM)</span>
             <span class="value-small" id="tripB-val">0.00</span>
             <div class="reset-progress" id="reset-bar"></div>
         </div>
 
-        <div class="right-stats">
-            <div>
-                <span class="label">KM/H</span>
-                <span class="value-small" id="speed-val">0</span>
-            </div>
+        <div class="stat-box right">
+            <span class="label">KM/H</span>
+            <span class="value-small" id="speed-val">0</span>
             <div id="last-reset-display"></div>
         </div>
     </div>
@@ -170,18 +170,18 @@
     <div class="info-btn" onclick="toggleDebug()">i</div>
 
     <div class="debug-panel" id="debug-panel">
-        <h2 style="color:white; margin-bottom:10px;">DIAGNOSTICA GPS PRO</h2>
-        <div class="debug-row">HZ (Aggiornamenti/sec): <span id="dbg-hz" style="color:yellow">0</span></div>
+        <h2 style="color:white; margin-bottom:10px;">DIAGNOSTICA GPS</h2>
+        <div class="debug-row">HZ: <span id="dbg-hz" style="color:yellow">0</span></div>
         <div class="debug-row">Precisione: <span id="dbg-acc">0</span> m</div>
         <div class="debug-row">Speed (GPS): <span id="dbg-spd">0.00</span> m/s</div>
         <div class="debug-row">Delta Distanza: <span id="dbg-dist" style="color:cyan">0.000</span> m</div>
         <div class="debug-row">Lat: <span id="dbg-lat">0</span></div>
         <div class="debug-row">Lon: <span id="dbg-lon">0</span></div>
-        <div class="debug-row">Status: <span id="dbg-status">Attesa Fix...</span></div>
-        <div class="debug-row">Ultimo segnale: <span id="dbg-time">--</span></div>
+        <div class="debug-row">Status: <span id="dbg-status">Wait...</span></div>
+        <div class="debug-row">Ultimo Fix: <span id="dbg-time">--</span></div>
 
-        <div class="btn-debug" onclick="goFullscreen()">ATTIVA FULLSCREEN</div>
-        <div class="btn-debug" onclick="location.reload()">RELOAD APP</div>
+        <div class="btn-debug" onclick="goFullscreen()">FULLSCREEN</div>
+        <div class="btn-debug" onclick="location.reload()">RELOAD</div>
         <div class="btn-debug" style="background:#400" onclick="toggleDebug()">CHIUDI</div>
     </div>
 
@@ -221,12 +221,10 @@
             const crd = pos.coords;
             const now = Date.now();
             
-            // Logica Hz
             updateTimestamps.push(now);
             updateTimestamps = updateTimestamps.filter(t => t > now - 2000);
             const hz = (updateTimestamps.length / 2).toFixed(1);
 
-            // Aggiornamento Diagnostica
             document.getElementById('dbg-hz').innerText = hz;
             document.getElementById('dbg-acc').innerText = crd.accuracy.toFixed(1);
             document.getElementById('dbg-spd').innerText = crd.speed ? crd.speed.toFixed(2) : "0.00";
@@ -235,16 +233,12 @@
             document.getElementById('dbg-time').innerText = new Date().toLocaleTimeString();
             document.getElementById('dbg-status').innerText = "FIX OK";
 
-            // Velocità
-            let speedKmh = (crd.speed || 0) * 3.6;
-            elSpeed.innerText = speedKmh.toFixed(0);
+            elSpeed.innerText = ((crd.speed || 0) * 3.6).toFixed(0);
 
-            // Calcolo Distanza
             if (lastLat !== null && lastLon !== null) {
                 let dist = calculateDistance(lastLat, lastLon, crd.latitude, crd.longitude);
                 document.getElementById('dbg-dist').innerText = dist.toFixed(3);
 
-                // Filtro sensibilità v3/v4
                 if ((crd.speed > 0.22) || (crd.accuracy < 10 && dist > 0.05)) {
                     tripA += dist;
                     tripB += dist;
@@ -255,10 +249,9 @@
         }
 
         navigator.geolocation.watchPosition(handlePosition, (err) => {
-            document.getElementById('dbg-status').innerText = "ERRORE: " + err.message;
+            document.getElementById('dbg-status').innerText = "ERR: " + err.message;
         }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
 
-        // RESET B (3 secondi)
         let pressTimer;
         document.getElementById('tripB-container').addEventListener('touchstart', (e) => {
             elResetBar.style.width = "100%";
@@ -276,7 +269,6 @@
             elResetBar.style.width = "0%";
         });
 
-        // TASTO BLUETOOTH
         let keyClicks = 0, keyTimer;
         window.addEventListener('keydown', (e) => {
             if (["Enter", " ", "VolumeUp", "VolumeDown", "AudioVolumeUp"].includes(e.key)) {
@@ -285,10 +277,11 @@
                 keyTimer = setTimeout(() => {
                     if (keyClicks >= 3) {
                         tripA = 0; tripB = 0; elLastReset.innerText = "";
+                        updateUI();
                     } else {
                         handleTapResetA();
                     }
-                    updateUI(); keyClicks = 0;
+                    keyClicks = 0;
                 }, 400);
             }
         });
@@ -304,8 +297,6 @@
             if (!document.fullscreenElement) document.documentElement.requestFullscreen();
             else document.exitFullscreen();
         }
-
-        // WakeLock per tenere acceso lo schermo
         if ('wakeLock' in navigator) { navigator.wakeLock.request('screen'); }
     </script>
 </body>
