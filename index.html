@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tripmaster Rally</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #container {
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+        #trip-display {
+            font-size: 48px;
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 18px;
+        }
+        /* Forza landscape */
+        @media (orientation: portrait) {
+            body {
+                transform: rotate(90deg);
+                width: 100vh;
+                height: 100vw;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Tripmaster Rally</h1>
+        <div id="trip-display">Trip: 0 metri</div>
+        <button onclick="connectGPS()">Connetti GPS Bluetooth (es. Garmin GLO)</button>
+        <button onclick="connectInternalGPS()">Usa GPS Interno</button>
+        <button onclick="connectButton()">Connetti Pulsante Remoto BLE</button>
+        <button onclick="resetTrip()">Reset Trip (Manuale)</button>
+        <div id="status">Status: Pronto</div>
+    </div>
+
+    <script>
+        let tripDistance = 0;
+        let prevLat = null;
+        let prevLon = null;
+        let reader = null;
+        let buttonCharacteristic = null;
+        let watchId = null; // Per GPS interno
+
+        // Forza orientamento landscape (se supportato)
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(err => console.log('Orientamento non supportato:', err));
+        }
+
+        // Funzione per calcolare distanza in metri (Haversine)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Raggio Terra in metri
+            const dLat = degToRad(lat2 - lat1);
+            const dLon = degToRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(degToRad(lat1)) * Math.cos(degToRad(lat2)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function degToRad(deg) {
+            return deg * (Math.PI / 180);
+        }
+
+        // Parsing semplice NMEA (es. per $GPGGA)
+        function parseNMEA(nmea) {
+            if (nmea.startsWith('$GPGGA')) {
+                const parts = nmea.split(',');
+                if (parts.length > 4) {
+                    let lat = parseFloat(parts[2]) / 100;
+                    let lon = parseFloat(parts[4]) / 100;
+                    // Converti in decimali
+                    lat = Math.floor(lat) + (lat % 1) * 100 / 60;
+                    lon = Math.floor(lon) + (lon % 1) * 100 / 60;
+                    if (parts[3] === 'S') lat = -lat;
+                    if (parts[5] === 'W') lon = -lon;
+
+                    if (prevLat !== null && prevLon !== null) {
+                        const distance = calculateDistance(prevLat, prevLon, lat, lon);
+                        tripDistance += distance;
+                        updateDisplay();
+                    }
+                    prevLat = lat;
+                    prevLon = lon;
+                }
+            }
+        }
+
+        // Aggiorna display
+        function updateDisplay() {
+            document.getElementById('trip-display').textContent = `Trip: ${Math.round(tripDistance)} metri`;
+        }
+
+        // Reset trip
+        function resetTrip() {
+            tripDistance = 0;
+            prevLat = null;
+            prevLon = null;
+            updateDisplay();
+            document.getElementById('status').textContent = 'Trip azzerato';
+        }
+
+        // Connessione GPS Bluetooth via Web Serial (per Garmin GLO e SPP)
+        async function connectGPS() {
+            try {
+                const port = await navigator.serial.requestPort({ filters: [{ bluetoothServiceClassId: 'serial_port' }] });
+                await port.open({ baudRate: 4800 }); // 4800 per Garmin GLO; cambia se necessario
+                document.getElementById('status').textContent = 'GPS connesso';
+
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                reader = textDecoder.readable.getReader();
+
+                (async () => {
+                    let buffer = '';
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += value;
+                        const lines = buffer.split('\r\n');
+                        buffer = lines.pop(); // Ultima linea incompleta
+                        lines.forEach(line => {
+                            if (line.startsWith('$')) parseNMEA(line);
+                        });
+                    }
+                })();
+            } catch (err) {
+                console.error('Errore GPS:', err);
+                document.getElementById('status').textContent = 'Errore connessione GPS: ' + err.message;
+            }
+        }
+
+        // Fallback: GPS Interno via Geolocation API
+        function connectInternalGPS() {
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    if (prevLat !== null && prevLon !== null) {
+                        const distance = calculateDistance(prevLat, prevLon, lat, lon);
+                        tripDistance += distance;
+                        updateDisplay();
+                    }
+                    prevLat = lat;
+                    prevLon = lon;
+                }, err => {
+                    document.getElementById('status').textContent = 'Errore GPS interno: ' + err.message;
+                }, { enableHighAccuracy: true });
+                document.getElementById('status').textContent = 'Usando GPS interno';
+            } else {
+                document.getElementById('status').textContent = 'Geolocation non supportata';
+            }
+        }
+
+        // Connessione Pulsante Remoto Bluetooth (BLE)
+        async function connectButton() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['00001812-0000-1000-8000-00805f9b34fb'] }], // Es. HID per button; adatta UUID
+                    optionalServices: ['00001812-0000-1000-8000-00805f9b34fb']
+                });
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('00001812-0000-1000-8000-00805f9b34fb');
+                buttonCharacteristic = await service.getCharacteristic('00002a4d-0000-1000-8000-00805f9b34fb'); // UUID per report
+                await buttonCharacteristic.startNotifications();
+                buttonCharacteristic.addEventListener('characteristicvaluechanged', event => {
+                    const value = event.target.value.getUint8(0);
+                    if (value === 1) { // Assumi 1 = premuto
+                        resetTrip();
+                    }
+                });
+                document.getElementById('status').textContent = 'Pulsante connesso';
+            } catch (err) {
+                console.error('Errore Pulsante:', err);
+                document.getElementById('status').textContent = 'Errore connessione Pulsante';
+            }
+        }
+    </script>
+</body>
+</html>
