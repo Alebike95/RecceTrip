@@ -3,309 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <title>Tripmaster Pro</title>
+    <title>Rally TripMaster</title>
     <style>
-        html, body {
+        /* STILE GRAFICO (CSS) */
+        body {
+            background-color: #000000; /* Sfondo Nero */
+            color: #00FF00; /* Testo Verde brillante (stile retro) */
+            font-family: 'Courier New', Courier, monospace;
             margin: 0;
             padding: 0;
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            background-color: #000;
-            color: #fff;
-            font-family: monospace, sans-serif;
-            touch-action: none; /* Previene zoom/pan indesiderati */
-            user-select: none; /* Previene selezione testo */
-        }
-        #container {
-            position: relative;
-            height: 100%;
-            width: 100%;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            align-items: stretch;
-            box-sizing: border-box;
+            overflow: hidden; /* Evita scorrimento */
         }
-        #top-row {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
+
+        /* Barra superiore */
+        .top-bar {
             display: flex;
             justify-content: space-between;
-            padding: 2% 3%; /* Percentuale per responsive */
-            box-sizing: border-box;
-            z-index: 10;
+            padding: 20px;
+            height: 20%;
+            align-items: flex-start;
         }
-        #trip2 {
-            font-size: 5vw; /* Responsive: 5% della larghezza viewport */
-            cursor: pointer;
+
+        .small-box {
+            font-size: 3rem; /* Dimensione piccolo trip e velocità */
+            font-weight: bold;
         }
-        #speed {
-            font-size: 5vw;
+
+        .label {
+            font-size: 1rem;
+            color: #888;
+            display: block;
         }
-        #main-trip {
+
+        /* Area Centrale */
+        .main-trip-container {
             flex-grow: 1;
             display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            font-size: 20vw; /* Grande e responsive */
-            padding-right: 3%; /* Rientro percentuale */
-            text-align: right;
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            cursor: pointer;
-            z-index: 5;
-        }
-        #buttons {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            display: flex;
+            flex-direction: column;
             justify-content: center;
-            flex-wrap: wrap;
-            padding: 2% 0;
-            box-sizing: border-box;
-            z-index: 10;
+            align-items: center;
+            border-top: 2px solid #333;
+            cursor: pointer; /* Indica che è cliccabile */
         }
-        button {
-            padding: 1% 2%;
-            margin: 0.5%;
-            font-size: 3vw; /* Responsive */
-            background-color: #333;
-            color: #fff;
-            border: 1px solid #fff;
-            border-radius: 10px;
-            min-width: 15%; /* Per non essere troppo piccoli */
+
+        .main-trip-value {
+            font-size: 8rem; /* Molto grande */
+            font-weight: bold;
+            color: #ffffff; /* Bianco per contrasto massimo */
         }
-        /* Media queries per adattamento */
-        @media (max-width: 600px) {
-            #trip2, #speed {
-                font-size: 6vw;
-                padding: 1% 2%;
-            }
-            #main-trip {
-                font-size: 25vw;
-                padding-right: 2%;
-            }
-            button {
-                font-size: 4vw;
-                padding: 1.5% 3%;
-            }
+
+        .main-trip-unit {
+            font-size: 2rem;
+            color: #888;
         }
-        @media (min-width: 1200px) {
-            #trip2, #speed {
-                font-size: 3vw;
-            }
-            #main-trip {
-                font-size: 15vw;
-            }
-            button {
-                font-size: 2vw;
-            }
-        }
-        /* Forza landscape su mobile */
-        @media (orientation: portrait) {
-            body {
-                transform: rotate(90deg);
-                transform-origin: center;
-                width: 100vh;
-                height: 100vw;
-            }
+
+        /* Feedback visivo al reset */
+        .flash {
+            background-color: #333333;
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <div id="top-row">
-            <div id="trip2">0</div>
-            <div id="speed">0</div>
+
+    <div class="top-bar">
+        <div class="small-box" id="tripB-display">
+            <span class="label">TRIP B (KM)</span>
+            <span id="tripB-val">0.00</span>
         </div>
-        <div id="main-trip">0</div>
-        <div id="buttons">
-            <button onclick="connectGPS()">GPS Ext</button>
-            <button onclick="connectInternalGPS()">GPS Int</button>
-            <button onclick="connectButton()">Btn Ext</button>
+
+        <div class="small-box" id="speed-display" style="text-align: right;">
+            <span class="label">SPEED (KM/H)</span>
+            <span id="speed-val">0</span>
         </div>
     </div>
 
+    <div class="main-trip-container" id="click-area" onclick="resetTripA()">
+        <span class="main-trip-value" id="tripA-val">0</span>
+        <span class="main-trip-unit">METRI</span>
+    </div>
+
     <script>
-        let tripDistance = 0; // Trip principale in metri
-        let trip2Distance = 0; // Trip secondario in metri
+        // VARIABILI
+        let tripA_meters = 0;
+        let tripB_meters = 0;
         let prevLat = null;
         let prevLon = null;
-        let speed = 0; // Velocità in km/h
-        let reader = null;
-        let buttonCharacteristic = null;
-        let watchId = null;
-        let pressTimer = null;
-        let buttonPressStart = null; // Per long press su pulsante esterno
+        
+        // Elementi HTML
+        const elTripA = document.getElementById('tripA-val');
+        const elTripB = document.getElementById('tripB-val');
+        const elSpeed = document.getElementById('speed-val');
+        const elContainer = document.getElementById('click-area');
 
-        // Forza orientamento landscape
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(err => console.log('Orientamento non supportato:', err));
+        // FUNZIONE: Calcolo distanza tra due coordinate (Haversine Formula semplificata per brevi distanze)
+        function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Raggio terra in metri
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            const d = R * c;
+            return d;
         }
 
-        // Calcola distanza in metri (Haversine migliorata per precisione)
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6378137; // Raggio equatoriale Terra per più precisione
-            const dLat = degToRad(lat2 - lat1);
-            const dLon = degToRad(lon2 - lon1);
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(degToRad(lat1)) * Math.cos(degToRad(lat2)) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
         }
 
-        function degToRad(deg) {
-            return deg * (Math.PI / 180);
-        }
+        // FUNZIONE: Gestione GPS
+        function success(pos) {
+            const crd = pos.coords;
+            
+            // 1. Gestione Velocità
+            if (crd.speed !== null) {
+                // La velocità arriva in m/s, convertiamo in km/h
+                let kmh = (crd.speed * 3.6).toFixed(0);
+                elSpeed.innerText = kmh;
+            }
 
-        // Parsing NMEA avanzato per Garmin GLO (GPGGA per pos, GPRMC per speed)
-        function parseNMEA(nmea) {
-            if (nmea.startsWith('$GPGGA')) {
-                const parts = nmea.split(',');
-                if (parts.length > 5 && parts[6] > 0) { // Check fix quality >0
-                    let lat = parseFloat(parts[2]) / 100;
-                    let lon = parseFloat(parts[4]) / 100;
-                    lat = Math.floor(lat) + (lat % 1) * 60 / 100; // Corretta conversione DDMM.mmmm a decimal
-                    lon = Math.floor(lon) + (lon % 1) * 60 / 100;
-                    if (parts[3] === 'S') lat = -lat;
-                    if (parts[5] === 'W') lon = -lon;
-
-                    if (prevLat !== null && prevLon !== null) {
-                        const distance = calculateDistance(prevLat, prevLon, lat, lon);
-                        if (!isNaN(distance) && distance < 100) { // Filtro per salti impossibili
-                            tripDistance += distance;
-                            trip2Distance += distance;
-                            updateDisplay();
-                        }
-                    }
-                    prevLat = lat;
-                    prevLon = lon;
-                }
-            } else if (nmea.startsWith('$GPRMC')) {
-                const parts = nmea.split(',');
-                if (parts.length > 7) {
-                    const knots = parseFloat(parts[7]);
-                    if (!isNaN(knots)) {
-                        speed = knots * 1.852; // knots to km/h
-                        updateDisplay();
+            // 2. Gestione Distanza
+            if (prevLat != null && prevLon != null) {
+                // Calcola distanza dal punto precedente
+                // Filtro: se la precisione è bassa o il movimento è infinitesimale, ignoralo
+                if (crd.accuracy < 20) { // Accetta solo segnali con precisione sotto i 20m
+                    let dist = getDistanceFromLatLonInMeters(prevLat, prevLon, crd.latitude, crd.longitude);
+                    
+                    // Aggiungi solo se ci siamo mossi davvero (filtro anti-jitter da fermo)
+                    if (dist > 0.5) { 
+                        tripA_meters += dist;
+                        tripB_meters += dist;
                     }
                 }
             }
+
+            // Aggiorna coordinate precedenti
+            prevLat = crd.latitude;
+            prevLon = crd.longitude;
+
+            updateDisplay();
         }
 
-        // Aggiorna display
+        function error(err) {
+            console.warn('ERRORE GPS(' + err.code + '): ' + err.message);
+        }
+
+        // Aggiorna lo schermo
         function updateDisplay() {
-            document.getElementById('main-trip').textContent = Math.round(tripDistance);
-            document.getElementById('trip2').textContent = Math.round(trip2Distance);
-            document.getElementById('speed').textContent = Math.round(speed);
+            // Trip A: Metri interi
+            elTripA.innerText = Math.floor(tripA_meters);
+            
+            // Trip B: Km con 2 decimali
+            elTripB.innerText = (tripB_meters / 1000).toFixed(2);
         }
 
-        // Reset trip principale (short press)
-        function resetMainTrip() {
-            tripDistance = 0;
-            updateDisplay();
-        }
-
-        // Reset trip2 (long press 3s)
-        function resetTrip2() {
-            trip2Distance = 0;
-            updateDisplay();
-        }
-
-        // Gestione touch su schermo per reset
-        const mainTripElement = document.getElementById('main-trip');
-        mainTripElement.addEventListener('touchstart', resetMainTrip);
-        const trip2Element = document.getElementById('trip2');
-        trip2Element.addEventListener('touchstart', () => {
-            pressTimer = setTimeout(resetTrip2, 3000);
+        // Avvia il GPS ad alta precisione
+        navigator.geolocation.watchPosition(success, error, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
         });
-        trip2Element.addEventListener('touchend', () => clearTimeout(pressTimer));
-        trip2Element.addEventListener('touchcancel', () => clearTimeout(pressTimer));
 
-        // Connessione GPS Esterno (Garmin GLO via Web Serial)
-        async function connectGPS() {
-            try {
-                const port = await navigator.serial.requestPort();
-                await port.open({ baudRate: 4800, bufferSize: 1024 }); // Ottimizzato per GLO
-                const textDecoder = new TextDecoderStream();
-                port.readable.pipeTo(textDecoder.writable);
-                reader = textDecoder.readable.getReader();
-                (async () => {
-                    let buffer = '';
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        buffer += value;
-                        let lines = buffer.split('\r\n');
-                        buffer = lines.pop();
-                        lines.forEach(line => line.startsWith('$') && parseNMEA(line));
-                    }
-                })();
-            } catch (err) {
-                console.error('Errore GPS Ext:', err);
-            }
+        // FUNZIONE: Azzera Trip A
+        function resetTripA() {
+            tripA_meters = 0;
+            updateDisplay();
+            
+            // Effetto visivo "flash"
+            elContainer.classList.add('flash');
+            setTimeout(() => {
+                elContainer.classList.remove('flash');
+            }, 100);
         }
 
-        // GPS Interno (fallback)
-        function connectInternalGPS() {
-            if (navigator.geolocation) {
-                watchId = navigator.geolocation.watchPosition(position => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const spd = position.coords.speed || 0;
-                    speed = spd * 3.6; // m/s to km/h
-                    if (prevLat !== null && prevLon !== null) {
-                        const distance = calculateDistance(prevLat, prevLon, lat, lon);
-                        if (!isNaN(distance) && distance < 100) {
-                            tripDistance += distance;
-                            trip2Distance += distance;
-                            updateDisplay();
-                        }
-                    }
-                    prevLat = lat;
-                    prevLon = lon;
-                }, err => console.error('Errore GPS Int:', err), { enableHighAccuracy: true, maximumAge: 0 });
+        // GESTIONE PULSANTE BLUETOOTH ESTERNO
+        // I pulsanti bluetooth solitamente inviano segnali "Volume" o "Invio"
+        window.addEventListener('keydown', function(event) {
+            const key = event.key;
+            // Codici comuni per telecomandi bluetooth: Enter, VolumeUp, VolumeDown, Space
+            if (key === "Enter" || key === "VolumeUp" || key === "VolumeDown" || key === " " || key === "AudioVolumeUp") {
+                resetTripA();
+                // Impedisce che il volume del telefono cambi davvero (se possibile)
+                // event.preventDefault(); 
             }
+        });
+
+        // Previeni lo spegnimento schermo (funziona su alcuni browser moderni)
+        try {
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen');
+            }
+        } catch (err) {
+            console.log("Wake Lock non supportato");
         }
 
-        // Connessione Pulsante Esterno BLE (gestione short/long press)
-        async function connectButton() {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true, // Adatta a filters specifici se noto UUID
-                    optionalServices: ['generic_hid'] // Assumi HID per button
-                });
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService('generic_hid');
-                buttonCharacteristic = await service.getCharacteristic('report');
-                await buttonCharacteristic.startNotifications();
-                buttonCharacteristic.addEventListener('characteristicvaluechanged', event => {
-                    const value = event.target.value.getUint8(0);
-                    if (value === 1) { // Press start
-                        buttonPressStart = Date.now();
-                    } else if (value === 0 && buttonPressStart) { // Release
-                        const duration = Date.now() - buttonPressStart;
-                        if (duration >= 3000) {
-                            resetTrip2();
-                        } else {
-                            resetMainTrip();
-                        }
-                        buttonPressStart = null;
-                    }
-                });
-            } catch (err) {
-                console.error('Errore Btn Ext:', err);
-            }
-        }
     </script>
 </body>
 </html>
