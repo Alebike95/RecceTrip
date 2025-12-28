@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster v4</title>
+    <title>Rally TripMaster v5</title>
     <style>
         :root {
             --bg-color: #000000;
             --text-main: #00FF00;
-            --text-dim: #555555;
+            --text-dim: #666666;
             --highlight: #FFFFFF;
             --alert: #FF0000;
             --last-val: #FF3333;
@@ -26,7 +26,7 @@
             touch-action: manipulation;
         }
 
-        /* LAYOUT ADATTIVO */
+        /* BARRA SUPERIORE */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -37,43 +37,40 @@
             background-color: #080808;
         }
 
-        /* TRIP B (Alto SX) */
         #tripB-container {
             display: flex; flex-direction: column;
             cursor: pointer; position: relative;
         }
 
-        /* AREA VELOCITÀ E LAST RESET (Alto DX) */
         .right-stats {
             display: flex; flex-direction: column;
             align-items: flex-end;
             text-align: right;
         }
 
-        /* DIMENSIONI TESTI DINAMICI */
         .label {
-            font-size: 3vh;
+            font-size: 2.5vh;
             color: var(--text-dim);
             font-weight: bold;
         }
 
         .value-small {
-            font-size: 8vh; /* Più grande rispetto a prima */
+            font-size: 8vh;
             font-weight: bold;
             color: var(--text-main);
             line-height: 1;
         }
 
-        /* Ultimo reset (Freeze) */
+        /* Valore ultimo reset (senza L: e più grande) */
         #last-reset-display {
-            font-size: 5vh;
+            font-size: 7vh; /* Incrementato */
             color: var(--last-val);
             font-weight: bold;
-            margin-top: 1vh;
-            min-height: 5vh;
+            margin-top: 5px;
+            min-height: 7vh;
         }
 
-        /* AREA CENTRALE (Trip A) */
+        /* AREA CENTRALE */
         .main-trip-container {
             flex-grow: 1;
             display: flex; flex-direction: column;
@@ -83,32 +80,25 @@
             background-color: #000;
         }
 
-        /* Media Queries per il Landscape (Orizzontale) */
-        @media (orientation: landscape) {
-            .main-trip-value {
-                font-size: 45vh !important; /* Molto più grande in orizzontale */
-            }
-            .value-small {
-                font-size: 12vh;
-            }
-            #last-reset-display {
-                font-size: 7vh;
-            }
-        }
-
         .main-trip-value {
             font-size: 28vh;
             line-height: 0.8;
             font-weight: bold;
             color: var(--highlight);
             font-variant-numeric: tabular-nums;
-            transition: font-size 0.2s;
+        }
+
+        @media (orientation: landscape) {
+            .main-trip-value { font-size: 48vh !important; }
+            .value-small { font-size: 11vh; }
+            #last-reset-display { font-size: 9vh; }
         }
 
         .main-trip-unit {
-            font-size: 4vh;
+            font-size: 3.5vh;
             color: var(--text-dim);
             letter-spacing: 10px;
+            margin-top: 1vh;
         }
 
         /* PULSANTE INFO */
@@ -117,15 +107,32 @@
             width: 50px; height: 50px;
             background: #111; border: 1px solid #333; border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
-            color: #888; z-index: 50;
+            color: #888; z-index: 50; font-size: 1.5rem;
         }
 
-        /* DEBUG PANEL */
+        /* PANNELLO DIAGNOSTICA COMPLETO (Ripristinato) */
         .debug-panel {
             display: none; position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.98); z-index: 100;
-            flex-direction: column; padding: 30px;
+            flex-direction: column; padding: 25px;
+            overflow-y: auto;
+        }
+        
+        .debug-row {
+            font-size: 1rem;
+            margin: 6px 0;
+            border-bottom: 1px solid #333;
+            width: 100%;
+            padding-bottom: 4px;
+            font-family: monospace;
+            color: #ccc;
+        }
+
+        .btn-debug {
+            margin-top: 15px; padding: 15px;
+            background: #222; color: #fff; border: 1px solid #444;
+            font-size: 1.1rem; text-align: center; width: 100%;
         }
 
         .reset-progress {
@@ -134,14 +141,14 @@
         }
 
         .flash { animation: flash-anim 0.2s; }
-        @keyframes flash-anim { 0% { background-color: #444; } 100% { background-color: #000; } }
+        @keyframes flash-anim { 0% { background-color: #333; } 100% { background-color: #000; } }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
         <div id="tripB-container">
-            <span class="label">TRIP B</span>
+            <span class="label">TRIP B (KM)</span>
             <span class="value-small" id="tripB-val">0.00</span>
             <div class="reset-progress" id="reset-bar"></div>
         </div>
@@ -163,20 +170,23 @@
     <div class="info-btn" onclick="toggleDebug()">i</div>
 
     <div class="debug-panel" id="debug-panel">
-        <h2 style="color:white;">DIAGNOSTICA v4.0</h2>
-        <div id="dbg-content" style="font-family:monospace; font-size: 1.2rem; color: #ccc;">
-            Hz: <span id="dbg-hz">--</span><br>
-            Acc: <span id="dbg-acc">--</span> m<br>
-            Spd: <span id="dbg-spd">--</span> m/s<br>
-            Fix: <span id="dbg-status">--</span>
-        </div>
-        <button style="margin-top:20px; padding:20px;" onclick="goFullscreen()">FULLSCREEN</button>
-        <button style="margin-top:10px; padding:20px;" onclick="toggleDebug()">CHIUDI</button>
+        <h2 style="color:white; margin-bottom:10px;">DIAGNOSTICA GPS PRO</h2>
+        <div class="debug-row">HZ (Aggiornamenti/sec): <span id="dbg-hz" style="color:yellow">0</span></div>
+        <div class="debug-row">Precisione: <span id="dbg-acc">0</span> m</div>
+        <div class="debug-row">Speed (GPS): <span id="dbg-spd">0.00</span> m/s</div>
+        <div class="debug-row">Delta Distanza: <span id="dbg-dist" style="color:cyan">0.000</span> m</div>
+        <div class="debug-row">Lat: <span id="dbg-lat">0</span></div>
+        <div class="debug-row">Lon: <span id="dbg-lon">0</span></div>
+        <div class="debug-row">Status: <span id="dbg-status">Attesa Fix...</span></div>
+        <div class="debug-row">Ultimo segnale: <span id="dbg-time">--</span></div>
+
+        <div class="btn-debug" onclick="goFullscreen()">ATTIVA FULLSCREEN</div>
+        <div class="btn-debug" onclick="location.reload()">RELOAD APP</div>
+        <div class="btn-debug" style="background:#400" onclick="toggleDebug()">CHIUDI</div>
     </div>
 
     <script>
-        let tripA = 0.0;
-        let tripB = 0.0;
+        let tripA = 0.0, tripB = 0.0;
         let lastLat = null, lastLon = null;
         let updateTimestamps = [];
 
@@ -186,12 +196,8 @@
         const elLastReset = document.getElementById('last-reset-display');
         const elResetBar = document.getElementById('reset-bar');
 
-        // FUNZIONE RESET TRIP A (Con salvataggio valore)
         function handleTapResetA() {
-            // Salva il valore prima di azzerare
-            let valToSave = Math.floor(tripA);
-            elLastReset.innerText = "L: " + valToSave;
-            
+            elLastReset.innerText = Math.floor(tripA);
             tripA = 0;
             updateUI();
             flashElement(document.querySelector('.main-trip-container'), 'flash');
@@ -215,22 +221,31 @@
             const crd = pos.coords;
             const now = Date.now();
             
-            // Debug Hz
+            // Logica Hz
             updateTimestamps.push(now);
             updateTimestamps = updateTimestamps.filter(t => t > now - 2000);
-            document.getElementById('dbg-hz').innerText = (updateTimestamps.length / 2).toFixed(1);
+            const hz = (updateTimestamps.length / 2).toFixed(1);
+
+            // Aggiornamento Diagnostica
+            document.getElementById('dbg-hz').innerText = hz;
             document.getElementById('dbg-acc').innerText = crd.accuracy.toFixed(1);
+            document.getElementById('dbg-spd').innerText = crd.speed ? crd.speed.toFixed(2) : "0.00";
+            document.getElementById('dbg-lat').innerText = crd.latitude.toFixed(6);
+            document.getElementById('dbg-lon').innerText = crd.longitude.toFixed(6);
+            document.getElementById('dbg-time').innerText = new Date().toLocaleTimeString();
+            document.getElementById('dbg-status').innerText = "FIX OK";
 
             // Velocità
             let speedKmh = (crd.speed || 0) * 3.6;
             elSpeed.innerText = speedKmh.toFixed(0);
 
-            // Distanza
+            // Calcolo Distanza
             if (lastLat !== null && lastLon !== null) {
                 let dist = calculateDistance(lastLat, lastLon, crd.latitude, crd.longitude);
-                
-                // Filtro movimento (speed > 0.8 km/h o salto > 0.1m con buona precisione)
-                if ((crd.speed > 0.22) || (crd.accuracy < 10 && dist > 0.1)) {
+                document.getElementById('dbg-dist').innerText = dist.toFixed(3);
+
+                // Filtro sensibilità v3/v4
+                if ((crd.speed > 0.22) || (crd.accuracy < 10 && dist > 0.05)) {
                     tripA += dist;
                     tripB += dist;
                     updateUI();
@@ -239,18 +254,18 @@
             lastLat = crd.latitude; lastLon = crd.longitude;
         }
 
-        navigator.geolocation.watchPosition(handlePosition, (err) => console.log(err), {
-            enableHighAccuracy: true, timeout: 5000, maximumAge: 0
-        });
+        navigator.geolocation.watchPosition(handlePosition, (err) => {
+            document.getElementById('dbg-status').innerText = "ERRORE: " + err.message;
+        }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
 
-        // RESET TOTALE (Trip B) - Touch Prolungato
+        // RESET B (3 secondi)
         let pressTimer;
         document.getElementById('tripB-container').addEventListener('touchstart', (e) => {
             elResetBar.style.width = "100%";
             elResetBar.style.transition = "width 3s linear";
             pressTimer = setTimeout(() => {
                 tripA = 0; tripB = 0;
-                elLastReset.innerText = ""; // Pulisce l'ultimo valore salvato
+                elLastReset.innerText = "";
                 updateUI();
                 elResetBar.style.width = "0%";
             }, 3000);
@@ -261,7 +276,7 @@
             elResetBar.style.width = "0%";
         });
 
-        // BLUETOOTH RESET
+        // TASTO BLUETOOTH
         let keyClicks = 0, keyTimer;
         window.addEventListener('keydown', (e) => {
             if (["Enter", " ", "VolumeUp", "VolumeDown", "AudioVolumeUp"].includes(e.key)) {
@@ -290,7 +305,7 @@
             else document.exitFullscreen();
         }
 
-        // Keep Screen Awake
+        // WakeLock per tenere acceso lo schermo
         if ('wakeLock' in navigator) { navigator.wakeLock.request('screen'); }
     </script>
 </body>
