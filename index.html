@@ -338,7 +338,13 @@
             if (lastLat !== null && lastLon !== null) {
                 let dist = calculateDistance(lastLat, lastLon, crd.latitude, crd.longitude);
                 document.getElementById('dbg-dist').innerText = dist.toFixed(3);
-                if ((crd.speed > 0.22) || (crd.accuracy < 10 && dist > 0.05)) {
+                
+                // Filtro più severo per evitare jitter GPS
+                const minSpeed = raceboxConnected ? 0.5 : 0.22; // RaceBox: min 1.8km/h, GPS interno: min 0.8km/h
+                const minDist = raceboxConnected ? 0.3 : 0.05; // RaceBox: min 30cm, GPS interno: min 5cm
+                const maxAcc = raceboxConnected ? 5 : 10; // RaceBox: max 5m accuracy, GPS interno: max 10m
+                
+                if ((crd.speed > minSpeed) || (crd.accuracy < maxAcc && dist > minDist)) {
                     tripA += dist;
                     tripB += dist;
                     updateUI();
