@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster v7</title>
+    <title>Rally TripMaster v7 + RaceBox</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -132,6 +132,19 @@
 
         .flash { animation: flash-anim 0.2s; }
         @keyframes flash-anim { 0% { background-color: #333; } 100% { background-color: #000; } }
+
+        .btn-debug {
+            margin-top:10px; padding:15px; 
+            color:white; border:1px solid #444; 
+            width:100%; text-align:center;
+            cursor: pointer;
+        }
+        .btn-racebox {
+            background: #004400;
+        }
+        .btn-racebox.connected {
+            background: #00aa00;
+        }
     </style>
 </head>
 <body>
@@ -163,6 +176,8 @@
 
     <div class="debug-panel" id="debug-panel">
         <h2 style="color:white;">DIAGNOSTICA GPS</h2>
+        <div class="debug-row">Fonte: <span id="dbg-source" style="color:yellow">GPS Interno</span></div>
+        <div class="debug-row" id="racebox-battery-row" style="display:none;">Batteria RaceBox: <span id="dbg-battery" style="color:#0f0">--</span>%</div>
         <div class="debug-row">HZ: <span id="dbg-hz" style="color:yellow">0</span></div>
         <div class="debug-row">Acc: <span id="dbg-acc">0</span> m</div>
         <div class="debug-row">Speed GPS: <span id="dbg-spd">0.00</span> m/s</div>
@@ -170,14 +185,18 @@
         <div class="debug-row">Lat: <span id="dbg-lat">0</span></div>
         <div class="debug-row">Lon: <span id="dbg-lon">0</span></div>
         <div class="debug-row">Fix: <span id="dbg-status">--</span></div>
-        <div class="btn-debug" style="margin-top:20px; padding:15px; background:#222; color:white; border:1px solid #444; width:100%; text-align:center;" onclick="goFullscreen()">FULLSCREEN</div>
-        <div class="btn-debug" style="margin-top:10px; padding:15px; background:#400; color:white; border:none; width:100%; text-align:center;" onclick="toggleDebug()">CHIUDI</div>
+        
+        <div class="btn-debug btn-racebox" id="racebox-btn" onclick="toggleRaceBox()">🔗 CONNETTI RACEBOX</div>
+        <div class="btn-debug" style="background:#222;" onclick="goFullscreen()">FULLSCREEN</div>
+        <div class="btn-debug" style="background:#400;" onclick="toggleDebug()">CHIUDI</div>
     </div>
 
     <script>
         let tripA = 0.0, tripB = 0.0;
         let lastLat = null, lastLon = null;
         let updateTimestamps = [];
+        let raceboxConnected = false;
+        let raceboxCharacteristic = null;
 
         const elTripA = document.getElementById('tripA-val');
         const elTripB = document.getElementById('tripB-val');
@@ -185,6 +204,102 @@
         const elLastReset = document.getElementById('last-reset-display');
         const elResetBar = document.getElementById('reset-bar');
 
+        // =======================================
+        // RACEBOX BLE
+        // =======================================
+        const UART_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+        const UART_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+        function u8(d, o) { return d[o]; }
+        function u16(d, o) { return d[o] | (d[o+1]<<8); }
+        function i16(d, o) {
+            const val = u16(d, o);
+            return val > 32767 ? val - 65536 : val;
+        }
+        function u32(d, o) {
+            return d[o] | (d[o+1]<<8) | (d[o+2]<<16) | (d[o+3]<<24);
+        }
+        function i32(d, o) {
+            return (u32(d, o) << 0);
+        }
+
+        function parseRaceBoxPacket(data) {
+            if (data[0] !== 0xB5 || data[1] !== 0x62) return null;
+            if (data[2] !== 0xFF || data[3] !== 0x01) return null;
+
+            const p = 6;
+            const numSV = u8(data, p + 23);
+            const lon = i32(data, p + 24) * 1e-7;
+            const lat = i32(data, p + 28) * 1e-7;
+            const hAcc = u32(data, p + 40) / 1000;
+            const speedMmS = i32(data, p + 48);
+            const speed = speedMmS / 1000; // m/s
+            const battery = u8(data, p + 67);
+
+            return { lat, lon, speed, hAcc, numSV, battery };
+        }
+
+        async function toggleRaceBox() {
+            const btn = document.getElementById('racebox-btn');
+            
+            if (raceboxConnected) {
+                // Disconnetti
+                if (raceboxCharacteristic) {
+                    await raceboxCharacteristic.stopNotifications();
+                }
+                raceboxConnected = false;
+                btn.textContent = '🔗 CONNETTI RACEBOX';
+                btn.classList.remove('connected');
+                document.getElementById('dbg-source').textContent = 'GPS Interno';
+                document.getElementById('racebox-battery-row').style.display = 'none';
+                return;
+            }
+
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'RaceBox Mini' }],
+                    optionalServices: [UART_SERVICE]
+                });
+
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(UART_SERVICE);
+                const tx = await service.getCharacteristic(UART_TX);
+
+                await tx.startNotifications();
+                raceboxCharacteristic = tx;
+                raceboxConnected = true;
+
+                btn.textContent = '✅ RACEBOX CONNESSO';
+                btn.classList.add('connected');
+                document.getElementById('dbg-source').textContent = 'RaceBox Mini';
+                document.getElementById('racebox-battery-row').style.display = 'block';
+
+                tx.addEventListener('characteristicvaluechanged', e => {
+                    const data = new Uint8Array(e.target.value.buffer);
+                    const p = parseRaceBoxPacket(data);
+                    if (!p) return;
+
+                    handlePosition({
+                        coords: {
+                            latitude: p.lat,
+                            longitude: p.lon,
+                            speed: p.speed,
+                            accuracy: p.hAcc
+                        }
+                    });
+
+                    // Mostra batteria
+                    document.getElementById('dbg-battery').textContent = p.battery;
+                });
+
+            } catch (err) {
+                alert('Errore connessione RaceBox: ' + err.message);
+            }
+        }
+
+        // =======================================
+        // TRIP LOGIC
+        // =======================================
         function handleTapResetA() {
             elLastReset.innerText = Math.floor(tripA);
             tripA = 0;
@@ -232,10 +347,16 @@
             lastLat = crd.latitude; lastLon = crd.longitude;
         }
 
+        // GPS Interno (fallback se RaceBox non connesso)
         navigator.geolocation.watchPosition(handlePosition, (err) => {
-            document.getElementById('dbg-status').innerText = "ERR: " + err.message;
+            if (!raceboxConnected) {
+                document.getElementById('dbg-status').innerText = "ERR: " + err.message;
+            }
         }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
 
+        // =======================================
+        // RESET TRIP B (LONG PRESS)
+        // =======================================
         let pressTimer;
         document.getElementById('tripB-container').addEventListener('touchstart', (e) => {
             elResetBar.style.width = "100%";
@@ -252,6 +373,9 @@
             elResetBar.style.width = "0%";
         });
 
+        // =======================================
+        // KEYBOARD SHORTCUTS
+        // =======================================
         window.addEventListener('keydown', (e) => {
             if (["Enter", " ", "VolumeUp", "VolumeDown", "AudioVolumeUp"].includes(e.key)) {
                 handleTapResetA();
