@@ -1,80 +1,86 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster v8.1 - RaceBox Fix</title>
-    <style>
-        :root {
-            --bg-color: #000000;
-            --text-main: #00FF00;
-            --text-dim: #666666;
-            --highlight: #FFFFFF;
-            --alert: #FF0000;
-            --last-val: #FF3333;
-        }
-        body {
-            background-color: var(--bg-color); color: var(--text-main);
-            font-family: 'Courier New', Courier, monospace; margin: 0; padding: 0;
-            height: 100dvh; width: 100vw; display: flex; flex-direction: column;
-            overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: manipulation;
-        }
-        .top-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: end; padding: 10px 20px 20px 20px; height: 35%; box-sizing: border-box; background-color: #080808; border-bottom: 2px solid #222; }
-        .stat-group { display: flex; flex-direction: column; align-items: center; }
-        .left-align { align-items: flex-start; }
-        .right-align { align-items: flex-end; }
-        .label { font-size: 2vh; color: var(--text-dim); font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-        .value-small { font-size: 9vh; font-weight: bold; color: var(--text-main); line-height: 0.9; font-variant-numeric: tabular-nums; }
-        #last-reset-display { font-size: 16vh; color: var(--last-val); font-weight: bold; line-height: 0.8; }
-        .main-trip-container { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background-color: #000; }
-        .main-trip-value { font-size: 30vh; line-height: 0.8; font-weight: bold; color: var(--highlight); font-variant-numeric: tabular-nums; }
-        @media (orientation: landscape) { .main-trip-value { font-size: 48vh !important; } .value-small { font-size: 11vh; } #last-reset-display { font-size: 20vh; } }
-        .main-trip-unit { font-size: 3vh; color: var(--text-dim); letter-spacing: 15px; margin-top: 10px; }
-        .info-btn { position: absolute; bottom: 20px; right: 20px; width: 45px; height: 45px; background: #111; border: 1px solid #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #444; z-index: 50; }
-        .debug-panel { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.98); z-index: 100; flex-direction: column; padding: 25px; overflow-y: auto; }
-        .debug-row { font-size: 0.95rem; margin: 6px 0; border-bottom: 1px solid #333; width: 100%; padding-bottom: 4px; font-family: monospace; color: #ccc; }
-        .reset-progress { position: absolute; top: 0; left: 0; height: 6px; background-color: var(--alert); width: 0%; }
-        .flash { animation: flash-anim 0.2s; }
-        @keyframes flash-anim { 0% { background-color: #333; } 100% { background-color: #000; } }
-        .btn-debug { margin-top:10px; padding:15px; color:white; border:1px solid #444; width:100%; text-align:center; cursor: pointer; }
-        .btn-racebox { background: #004400; }
-        .btn-racebox.connected { background: #00aa00; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rally TripMaster v8.1 - RaceBox + Voice</title>
+<style>
+:root {
+    --bg-color: #000000;
+    --text-main: #00FF00;
+    --text-dim: #666666;
+    --highlight: #FFFFFF;
+    --alert: #FF0000;
+    --last-val: #FF3333;
+}
+body {
+    background-color: var(--bg-color); color: var(--text-main);
+    font-family: 'Courier New', Courier, monospace; margin: 0; padding: 0;
+    height: 100dvh; width: 100vw; display: flex; flex-direction: column;
+    overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+.top-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: end; padding: 10px 20px 20px 20px; height: 35%; box-sizing: border-box; background-color: #080808; border-bottom: 2px solid #222; }
+.stat-group { display: flex; flex-direction: column; align-items: center; }
+.left-align { align-items: flex-start; }
+.right-align { align-items: flex-end; }
+.label { font-size: 2vh; color: var(--text-dim); font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+.value-small { font-size: 9vh; font-weight: bold; color: var(--text-main); line-height: 0.9; font-variant-numeric: tabular-nums; }
+#last-reset-display { font-size: 16vh; color: var(--last-val); font-weight: bold; line-height: 0.8; }
+.main-trip-container { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background-color: #000; }
+.main-trip-value { font-size: 30vh; line-height: 0.8; font-weight: bold; color: var(--highlight); font-variant-numeric: tabular-nums; }
+@media (orientation: landscape) { .main-trip-value { font-size: 48vh !important; } .value-small { font-size: 11vh; } #last-reset-display { font-size: 20vh; } }
+.main-trip-unit { font-size: 3vh; color: var(--text-dim); letter-spacing: 15px; margin-top: 10px; }
+.info-btn { position: absolute; bottom: 20px; right: 20px; width: 45px; height: 45px; background: #111; border: 1px solid #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #444; z-index: 50; }
+.voice-btn { position: absolute; bottom: 20px; left: 20px; width: 60px; height: 45px; background: #111; border: 1px solid #333; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: #0f0; cursor: pointer; z-index: 50; }
+.voice-btn.off { color: #444; }
+.debug-panel { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.98); z-index: 100; flex-direction: column; padding: 25px; overflow-y: auto; }
+.debug-row { font-size: 0.95rem; margin: 6px 0; border-bottom: 1px solid #333; width: 100%; padding-bottom: 4px; font-family: monospace; color: #ccc; }
+.reset-progress { position: absolute; top: 0; left: 0; height: 6px; background-color: var(--alert); width: 0%; }
+.flash { animation: flash-anim 0.2s; }
+@keyframes flash-anim { 0% { background-color: #333; } 100% { background-color: #000; } }
+.btn-debug { margin-top:10px; padding:15px; color:white; border:1px solid #444; width:100%; text-align:center; cursor: pointer; }
+.btn-racebox { background: #004400; }
+.btn-racebox.connected { background: #00aa00; }
+</style>
 </head>
 <body>
-    <div class="top-bar">
-        <div class="stat-group left-align" id="tripB-container">
-            <span class="label">TRIP B</span>
-            <span class="value-small" id="tripB-val">0.00</span>
-            <div class="reset-progress" id="reset-bar"></div>
-        </div>
-        <div class="stat-group">
-            <span class="label" style="color:#400">LAST</span>
-            <span id="last-reset-display"></span>
-        </div>
-        <div class="stat-group right-align">
-            <span class="label">KM/H</span>
-            <span class="value-small" id="speed-val">0</span>
-        </div>
+<div class="top-bar">
+    <div class="stat-group left-align" id="tripB-container">
+        <span class="label">TRIP B</span>
+        <span class="value-small" id="tripB-val">0.00</span>
+        <div class="reset-progress" id="reset-bar"></div>
     </div>
-    <div class="main-trip-container" id="click-area" onclick="handleTapResetA()">
-        <span class="main-trip-value" id="tripA-val">0</span>
-        <span class="main-trip-unit">METRI</span>
+    <div class="stat-group">
+        <span class="label" style="color:#400">LAST</span>
+        <span id="last-reset-display"></span>
     </div>
-    <div class="info-btn" onclick="toggleDebug()">i</div>
-    <div class="debug-panel" id="debug-panel">
-        <h2 style="color:white;">DIAGNOSTICA GPS</h2>
-        <div class="debug-row">Fonte: <span id="dbg-source" style="color:yellow">GPS Interno</span></div>
-        <div class="debug-row" id="racebox-battery-row" style="display:none;">Batteria RaceBox: <span id="dbg-battery" style="color:#0f0">--</span>%</div>
-        <div class="debug-row">HZ: <span id="dbg-hz" style="color:yellow">0</span></div>
-        <div class="debug-row">Speed GPS: <span id="dbg-spd">0.00</span> m/s</div>
-        <div class="debug-row">Delta 3D: <span id="dbg-dist3d" style="color:#0f0">0.0000</span> m</div>
-        <div class="debug-row">Alt: <span id="dbg-alt">0</span> m</div>
-        <div class="debug-row">Fix: <span id="dbg-status">--</span></div>
-        <div class="btn-debug btn-racebox" id="racebox-btn" onclick="toggleRaceBox()">🔗 CONNETTI RACEBOX</div>
-        <div class="btn-debug" style="background:#222;" onclick="goFullscreen()">FULLSCREEN</div>
-        <div class="btn-debug" style="background:#400;" onclick="toggleDebug()">CHIUDI</div>
+    <div class="stat-group right-align">
+        <span class="label">KM/H</span>
+        <span class="value-small" id="speed-val">0</span>
     </div>
+</div>
+
+<div class="main-trip-container" id="click-area" onclick="handleTapResetA()">
+    <span class="main-trip-value" id="tripA-val">0</span>
+    <span class="main-trip-unit">METRI</span>
+</div>
+
+<div class="info-btn" onclick="toggleDebug()">i</div>
+<div class="voice-btn off" id="voice-toggle">🎤</div>
+
+<div class="debug-panel" id="debug-panel">
+    <h2 style="color:white;">DIAGNOSTICA GPS</h2>
+    <div class="debug-row">Fonte: <span id="dbg-source" style="color:yellow">GPS Interno</span></div>
+    <div class="debug-row" id="racebox-battery-row" style="display:none;">Batteria RaceBox: <span id="dbg-battery" style="color:#0f0">--</span>%</div>
+    <div class="debug-row">HZ: <span id="dbg-hz" style="color:yellow">0</span></div>
+    <div class="debug-row">Speed GPS: <span id="dbg-spd">0.00</span> m/s</div>
+    <div class="debug-row">Delta 3D: <span id="dbg-dist3d" style="color:#0f0">0.0000</span> m</div>
+    <div class="debug-row">Alt: <span id="dbg-alt">0</span> m</div>
+    <div class="debug-row">Fix: <span id="dbg-status">--</span></div>
+    <div class="btn-debug btn-racebox" id="racebox-btn" onclick="toggleRaceBox()">🔗 CONNETTI RACEBOX</div>
+    <div class="btn-debug" style="background:#222;" onclick="goFullscreen()">FULLSCREEN</div>
+    <div class="btn-debug" style="background:#400;" onclick="toggleDebug()">CHIUDI</div>
+</div>
 
 <script>
 let tripA = 0.0, tripB = 0.0;
@@ -89,7 +95,12 @@ const elTripB = document.getElementById('tripB-val');
 const elSpeed = document.getElementById('speed-val');
 const elLastReset = document.getElementById('last-reset-display');
 const elResetBar = document.getElementById('reset-bar');
+const voiceToggle = document.getElementById('voice-toggle');
 
+let recognition = null;
+let voiceEnabled = false;
+
+// --- FUNZIONI BASE ---
 function u8(d, o) { return d[o]; }
 function u32(d, o) { return d[o] | (d[o+1]<<8) | (d[o+2]<<16) | (d[o+3]<<24); }
 function i32(d, o) { return (u32(d, o) << 0); }
@@ -107,6 +118,7 @@ function parseRaceBoxPacket(data) {
     };
 }
 
+// --- RACEBOX ---
 async function toggleRaceBox() {
     const btn = document.getElementById('racebox-btn');
     if (raceboxConnected) {
@@ -138,7 +150,6 @@ async function toggleRaceBox() {
         const server = await raceboxDevice.gatt.connect();
         const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
         const tx = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
-
         await tx.startNotifications();
         raceboxCharacteristic = tx;
         raceboxConnected = true;
@@ -146,128 +157,127 @@ async function toggleRaceBox() {
         btn.classList.add('connected');
         document.getElementById('dbg-source').textContent = 'RaceBox Mini';
         document.getElementById('racebox-battery-row').style.display = 'block';
-
         lastLat = lastLon = lastAlt = null;
 
         tx.addEventListener('characteristicvaluechanged', e => {
             const data = new Uint8Array(e.target.value.buffer);
             const p = parseRaceBoxPacket(data);
-            if (p) {
-                handlePosition({
-                    coords: {
-                        latitude: p.lat,
-                        longitude: p.lon,
-                        altitude: p.alt,
-                        speed: p.speed,
-                        accuracy: 1
-                    }
-                });
-                document.getElementById('dbg-battery').textContent = p.battery;
-            }
+            if (p) handlePosition({
+                coords: { latitude: p.lat, longitude: p.lon, altitude: p.alt, speed: p.speed, accuracy: 1 }
+            });
+            document.getElementById('dbg-battery').textContent = p?.battery;
         });
-    } catch (err) {
-        alert('Errore: ' + err.message);
-    }
+
+    } catch (err) { alert('Errore: ' + err.message); }
 }
 
+// --- POSIZIONE ---
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2)**2 +
-              Math.cos(lat1 * Math.PI / 180) *
-              Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 function handlePosition(pos) {
     const crd = pos.coords;
     const now = Date.now();
-
     updateTimestamps.push(now);
-    updateTimestamps = updateTimestamps.filter(t => t > now - 2000);
+    updateTimestamps = updateTimestamps.filter(t => t > now-2000);
 
-    if (updateTimestamps.length > 1) {
-        const dt = (updateTimestamps.at(-1) - updateTimestamps[0]) / 1000;
-        document.getElementById('dbg-hz').innerText = (updateTimestamps.length / dt).toFixed(1);
+    if (updateTimestamps.length>1){
+        const dt = (updateTimestamps.at(-1)-updateTimestamps[0])/1000;
+        document.getElementById('dbg-hz').innerText=(updateTimestamps.length/dt).toFixed(1);
     }
 
-    document.getElementById('dbg-spd').innerText = crd.speed ? crd.speed.toFixed(2) : "0.00";
-    document.getElementById('dbg-alt').innerText = crd.altitude ? crd.altitude.toFixed(1) : "N/A";
-    document.getElementById('dbg-status').innerText = "FIX OK";
-    elSpeed.innerText = Math.max(0, (crd.speed || 0) * 3.6).toFixed(0);
+    document.getElementById('dbg-spd').innerText=crd.speed?crd.speed.toFixed(2):"0.00";
+    document.getElementById('dbg-alt').innerText=crd.altitude?crd.altitude.toFixed(1):"N/A";
+    document.getElementById('dbg-status').innerText="FIX OK";
+    elSpeed.innerText=Math.max(0,(crd.speed||0)*3.6).toFixed(0);
 
-    if (lastLat !== null && lastLon !== null) {
-        let dist2d = calculateDistance(lastLat, lastLon, crd.latitude, crd.longitude);
-        let distFinal = dist2d;
-
-        if (lastAlt !== null && crd.altitude !== null) {
-            const dAlt = crd.altitude - lastAlt;
-            distFinal = Math.sqrt(dist2d*dist2d + dAlt*dAlt);
+    if(lastLat!==null && lastLon!==null){
+        let dist2d=calculateDistance(lastLat,lastLon,crd.latitude,crd.longitude);
+        let distFinal=dist2d;
+        if(lastAlt!==null && crd.altitude!==null){
+            const dAlt=crd.altitude-lastAlt;
+            distFinal=Math.sqrt(dist2d*dist2d+dAlt*dAlt);
         }
-
-        document.getElementById('dbg-dist3d').innerText = distFinal.toFixed(4);
-
-        if (crd.speed > 0.1 && distFinal < 50) {
-            tripA += distFinal;
-            tripB += distFinal;
+        document.getElementById('dbg-dist3d').innerText=distFinal.toFixed(4);
+        if(crd.speed>0.1 && distFinal<50){
+            tripA+=distFinal;
+            tripB+=distFinal;
             updateUI();
         }
     }
 
-    lastLat = crd.latitude;
-    lastLon = crd.longitude;
-    lastAlt = crd.altitude;
+    lastLat=crd.latitude;
+    lastLon=crd.longitude;
+    lastAlt=crd.altitude;
 }
 
-function updateUI() {
-    elTripA.innerText = Math.floor(tripA);
-    elTripB.innerText = (tripB / 1000).toFixed(2);
-}
+function updateUI(){ elTripA.innerText=Math.floor(tripA); elTripB.innerText=(tripB/1000).toFixed(2); }
+function handleTapResetA(){ elLastReset.innerText=Math.floor(tripA); tripA=0; updateUI(); flashElement(document.querySelector('.main-trip-container'),'flash'); }
+function flashElement(el,cls){ el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 
-function handleTapResetA() {
-    elLastReset.innerText = Math.floor(tripA);
-    tripA = 0;
-    updateUI();
-}
-
+// --- GEO ---
 navigator.geolocation.watchPosition(
-    pos => { if (!raceboxConnected) handlePosition(pos); },
-    err => { if (!raceboxConnected) document.getElementById('dbg-status').innerText = "ERR: " + err.message; },
-    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    pos=>{if(!raceboxConnected) handlePosition(pos);},
+    err=>{if(!raceboxConnected) document.getElementById('dbg-status').innerText="ERR: "+err.message;},
+    {enableHighAccuracy:true,timeout:5000,maximumAge:0}
 );
 
-document.getElementById('tripB-container').addEventListener('touchstart', () => {
-    elResetBar.style.width = "100%";
-    elResetBar.style.transition = "width 3s linear";
-    setTimeout(() => {
-        tripA = 0;
-        tripB = 0;
-        elLastReset.innerText = "";
-        updateUI();
-        elResetBar.style.width = "0%";
-    }, 3000);
+// --- TRIP B RESET ---
+document.getElementById('tripB-container').addEventListener('touchstart',()=>{
+    elResetBar.style.width="100%";
+    elResetBar.style.transition="width 3s linear";
+    pressTimer=setTimeout(()=>{
+        tripA=0; tripB=0; elLastReset.innerText=""; updateUI(); elResetBar.style.width="0%";
+    },3000);
+});
+document.getElementById('tripB-container').addEventListener('touchend',()=>{
+    clearTimeout(pressTimer); elResetBar.style.transition="none"; elResetBar.style.width="0%";
 });
 
-document.getElementById('tripB-container').addEventListener('touchend', () => {
-    elResetBar.style.transition = "none";
-    elResetBar.style.width = "0%";
+// --- KEYBOARD ---
+window.addEventListener('keydown', e=>{ if(["Enter"," ","VolumeUp","VolumeDown"].includes(e.key)) handleTapResetA(); });
+
+// --- DEBUG / FULLSCREEN ---
+function toggleDebug(){ const p=document.getElementById('debug-panel'); p.style.display=(p.style.display==='flex')?'none':'flex'; }
+function goFullscreen(){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+if('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(()=>{});
+
+// --- VOICE RECOGNITION ---
+function initVoiceRecognition(){
+    if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'it-IT';
+
+    recognition.onresult = (event)=>{
+        for(let i=event.resultIndex;i<event.results.length;i++){
+            if(event.results[i].isFinal){
+                const text = event.results[i][0].transcript.trim().toUpperCase();
+                if(text==='QUI') handleTapResetA();
+            }
+        }
+    };
+    recognition.onend = ()=>{ if(voiceEnabled) recognition.start(); };
+}
+
+voiceToggle.addEventListener('click',()=>{
+    voiceEnabled=!voiceEnabled;
+    voiceToggle.classList.toggle('off',!voiceEnabled);
+    if(voiceEnabled){
+        if(!recognition) initVoiceRecognition();
+        recognition.start();
+    }else if(recognition){
+        recognition.stop();
+    }
 });
-
-function toggleDebug() {
-    const p = document.getElementById('debug-panel');
-    p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
-}
-
-function goFullscreen() {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-    else document.exitFullscreen();
-}
-
-if ('wakeLock' in navigator) {
-    navigator.wakeLock.request('screen').catch(() => {});
-}
 </script>
 </body>
 </html>
