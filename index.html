@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster v8 - High Precision</title>
+    <title>Rally TripMaster v8.1 - RaceBox Fix</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -67,9 +67,8 @@
         <div class="debug-row">Fonte: <span id="dbg-source" style="color:yellow">GPS Interno</span></div>
         <div class="debug-row" id="racebox-battery-row" style="display:none;">Batteria RaceBox: <span id="dbg-battery" style="color:#0f0">--</span>%</div>
         <div class="debug-row">HZ: <span id="dbg-hz" style="color:yellow">0</span></div>
-        <div class="debug-row">Acc: <span id="dbg-acc">0</span> m</div>
         <div class="debug-row">Speed GPS: <span id="dbg-spd">0.00</span> m/s</div>
-        <div class="debug-row">Delta 3D: <span id="dbg-dist3d" style="color:#0f0">0.000</span> m</div>
+        <div class="debug-row">Delta 3D: <span id="dbg-dist3d" style="color:#0f0">0.0000</span> m</div>
         <div class="debug-row">Alt: <span id="dbg-alt">0</span> m</div>
         <div class="debug-row">Fix: <span id="dbg-status">--</span></div>
         <div class="btn-debug btn-racebox" id="racebox-btn" onclick="toggleRaceBox()">🔗 CONNETTI RACEBOX</div>
@@ -92,16 +91,18 @@
 
         function u8(d, o) { return d[o]; }
         function u16(d, o) { return d[o] | (d[o+1]<<8); }
-        function i32(d, o) { return (d[o] | (d[o+1]<<8) | (d[o+2]<<16) | (d[o+3]<<24)) << 0; }
+        function u32(d, o) { return d[o] | (d[o+1]<<8) | (d[o+2]<<16) | (d[o+3]<<24); }
+        function i32(d, o) { return (u32(d, o) << 0); }
 
         function parseRaceBoxPacket(data) {
+            if (data.length < 70) return null;
             if (data[0] !== 0xB5 || data[1] !== 0x62 || data[2] !== 0xFF || data[3] !== 0x01) return null;
+            
             const p = 6;
             return {
                 lon: i32(data, p + 24) * 1e-7,
                 lat: i32(data, p + 28) * 1e-7,
                 alt: i32(data, p + 32) / 1000,
-                hAcc: (d => d[o] | (d[o+1]<<8) | (d[o+2]<<16) | (d[o+3]<<24))(data, p + 40) / 1000, // inline u32 for hAcc
                 speed: i32(data, p + 48) / 1000,
                 battery: u8(data, p + 67)
             };
@@ -118,21 +119,36 @@
                 lastLat = null; lastLon = null; lastAlt = null; return;
             }
             try {
-                const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'RaceBox Mini' }], optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] });
+                const device = await navigator.bluetooth.requestDevice({ 
+                    filters: [{ namePrefix: 'RaceBox Mini' }], 
+                    optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] 
+                });
                 const server = await device.gatt.connect();
                 const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
                 const tx = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+                
                 await tx.startNotifications();
-                raceboxCharacteristic = tx; raceboxConnected = true;
+                raceboxCharacteristic = tx; 
+                raceboxConnected = true;
                 btn.textContent = '✅ RACEBOX CONNESSO'; btn.classList.add('connected');
                 document.getElementById('dbg-source').textContent = 'RaceBox Mini';
                 document.getElementById('racebox-battery-row').style.display = 'block';
+                
                 lastLat = null; lastLon = null; lastAlt = null;
+
                 tx.addEventListener('characteristicvaluechanged', e => {
                     const data = new Uint8Array(e.target.value.buffer);
                     const p = parseRaceBoxPacket(data);
                     if (p) {
-                        handlePosition({ coords: { latitude: p.lat, longitude: p.lon, altitude: p.alt, speed: p.speed, accuracy: 2 } }); // accuracy fissa per racebox
+                        handlePosition({ 
+                            coords: { 
+                                latitude: p.lat, 
+                                longitude: p.lon, 
+                                altitude: p.alt, 
+                                speed: p.speed, 
+                                accuracy: 1 
+                            } 
+                        });
                         document.getElementById('dbg-battery').textContent = p.battery;
                     }
                 });
@@ -170,10 +186,8 @@
 
                 document.getElementById('dbg-dist3d').innerText = distFinal.toFixed(4);
 
-                // LOGICA DI MOVIMENTO REALE
-                // Se la velocità è superiore a 0.3 km/h, sommiamo tutto senza filtri di distanza minimi
-                // Questo permette di contare anche i micro-spostamenti a 25Hz
-                if ((crd.speed * 3.6) > 0.3) {
+                // LOGICA: Somma solo se la velocità è reale (> 0.1 m/s = 0.36 km/h)
+                if (crd.speed > 0.1) {
                     tripA += distFinal;
                     tripB += distFinal;
                     updateUI();
