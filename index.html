@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster v7 + RaceBox</title>
+    <title>Rally TripMaster v7 + RaceBox 3D</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -13,7 +13,6 @@
             --alert: #FF0000;
             --last-val: #FF3333;
         }
-
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
@@ -37,13 +36,11 @@
             background-color: #080808;
             border-bottom: 2px solid #222;
         }
-
         .stat-group {
             display: flex;
             flex-direction: column;
             align-items: center; /* Centra il contenuto nel suo terzo */
         }
-
         .left-align { align-items: flex-start; }
         .right-align { align-items: flex-end; }
 
@@ -54,7 +51,6 @@
             margin-bottom: 5px;
             text-transform: uppercase;
         }
-
         .value-small {
             font-size: 9vh;
             font-weight: bold;
@@ -79,7 +75,6 @@
             position: relative;
             background-color: #000;
         }
-
         .main-trip-value {
             font-size: 30vh;
             line-height: 0.8;
@@ -148,19 +143,16 @@
     </style>
 </head>
 <body>
-
     <div class="top-bar">
         <div class="stat-group left-align" id="tripB-container">
             <span class="label">TRIP B</span>
             <span class="value-small" id="tripB-val">0.00</span>
             <div class="reset-progress" id="reset-bar"></div>
         </div>
-
         <div class="stat-group">
             <span class="label" style="color:#400">LAST</span>
             <span id="last-reset-display"></span>
         </div>
-
         <div class="stat-group right-align">
             <span class="label">KM/H</span>
             <span class="value-small" id="speed-val">0</span>
@@ -181,9 +173,11 @@
         <div class="debug-row">HZ: <span id="dbg-hz" style="color:yellow">0</span></div>
         <div class="debug-row">Acc: <span id="dbg-acc">0</span> m</div>
         <div class="debug-row">Speed GPS: <span id="dbg-spd">0.00</span> m/s</div>
-        <div class="debug-row">Delta: <span id="dbg-dist" style="color:cyan">0.000</span> m</div>
+        <div class="debug-row">Delta 2D: <span id="dbg-dist" style="color:cyan">0.000</span> m</div>
+        <div class="debug-row">Delta 3D: <span id="dbg-dist3d" style="color:#0f0">0.000</span> m</div>
         <div class="debug-row">Lat: <span id="dbg-lat">0</span></div>
         <div class="debug-row">Lon: <span id="dbg-lon">0</span></div>
+        <div class="debug-row">Alt: <span id="dbg-alt">0</span> m</div>
         <div class="debug-row">Fix: <span id="dbg-status">--</span></div>
         
         <div class="btn-debug btn-racebox" id="racebox-btn" onclick="toggleRaceBox()">🔗 CONNETTI RACEBOX</div>
@@ -193,7 +187,7 @@
 
     <script>
         let tripA = 0.0, tripB = 0.0;
-        let lastLat = null, lastLon = null;
+        let lastLat = null, lastLon = null, lastAlt = null; // Aggiunto lastAlt
         let updateTimestamps = [];
         let raceboxConnected = false;
         let raceboxCharacteristic = null;
@@ -231,12 +225,16 @@
             const numSV = u8(data, p + 23);
             const lon = i32(data, p + 24) * 1e-7;
             const lat = i32(data, p + 28) * 1e-7;
+            
+            // LETTURA ALTITUDINE (WGS84) come da specifiche RaceBox
+            const alt = i32(data, p + 32) / 1000; // mm -> m
+
             const hAcc = u32(data, p + 40) / 1000;
             const speedMmS = i32(data, p + 48);
             const speed = speedMmS / 1000; // m/s
             const battery = u8(data, p + 67);
 
-            return { lat, lon, speed, hAcc, numSV, battery };
+            return { lat, lon, alt, speed, hAcc, numSV, battery };
         }
 
         async function toggleRaceBox() {
@@ -268,7 +266,6 @@
                 await tx.startNotifications();
                 raceboxCharacteristic = tx;
                 raceboxConnected = true;
-
                 btn.textContent = '✅ RACEBOX CONNESSO';
                 btn.classList.add('connected');
                 document.getElementById('dbg-source').textContent = 'RaceBox Mini';
@@ -283,11 +280,12 @@
                         coords: {
                             latitude: p.lat,
                             longitude: p.lon,
+                            altitude: p.alt, // Passaggio Altitudine
                             speed: p.speed,
                             accuracy: p.hAcc
                         }
                     });
-
+                    
                     // Mostra batteria
                     document.getElementById('dbg-battery').textContent = p.battery;
                 });
@@ -326,31 +324,49 @@
             const now = Date.now();
             updateTimestamps.push(now);
             updateTimestamps = updateTimestamps.filter(t => t > now - 2000);
+
             document.getElementById('dbg-hz').innerText = (updateTimestamps.length / 2).toFixed(1);
             document.getElementById('dbg-acc').innerText = crd.accuracy.toFixed(1);
             document.getElementById('dbg-spd').innerText = crd.speed ? crd.speed.toFixed(2) : "0.00";
             document.getElementById('dbg-lat').innerText = crd.latitude.toFixed(6);
             document.getElementById('dbg-lon').innerText = crd.longitude.toFixed(6);
+            document.getElementById('dbg-alt').innerText = crd.altitude ? crd.altitude.toFixed(1) : "N/A";
             document.getElementById('dbg-status').innerText = "FIX OK";
 
             elSpeed.innerText = ((crd.speed || 0) * 3.6).toFixed(0);
 
             if (lastLat !== null && lastLon !== null) {
-                let dist = calculateDistance(lastLat, lastLon, crd.latitude, crd.longitude);
-                document.getElementById('dbg-dist').innerText = dist.toFixed(3);
+                // Calcolo distanza 2D base
+                let dist2d = calculateDistance(lastLat, lastLon, crd.latitude, crd.longitude);
+                let distFinal = dist2d;
+
+                // Calcolo 3D se altitudine è disponibile in entrambi i punti
+                if (lastAlt !== null && crd.altitude !== null && crd.altitude !== undefined) {
+                    const dAlt = crd.altitude - lastAlt;
+                    // Pitagora: Ipotenusa^2 = Distanza2D^2 + Dislivello^2
+                    distFinal = Math.sqrt((dist2d * dist2d) + (dAlt * dAlt));
+                    document.getElementById('dbg-dist3d').innerText = distFinal.toFixed(3);
+                } else {
+                    document.getElementById('dbg-dist3d').innerText = "---";
+                }
+
+                document.getElementById('dbg-dist').innerText = dist2d.toFixed(3);
                 
-                // Filtro più severo per evitare jitter GPS
-                const minSpeed = raceboxConnected ? 0.5 : 0.22; // RaceBox: min 1.8km/h, GPS interno: min 0.8km/h
-                const minDist = raceboxConnected ? 0.3 : 0.05; // RaceBox: min 30cm, GPS interno: min 5cm
-                const maxAcc = raceboxConnected ? 5 : 10; // RaceBox: max 5m accuracy, GPS interno: max 10m
-                
-                if ((crd.speed > minSpeed) || (crd.accuracy < maxAcc && dist > minDist)) {
-                    tripA += dist;
-                    tripB += dist;
+                // Filtro anti-jitter
+                const minSpeed = raceboxConnected ? 0.5 : 0.22; 
+                const minDist = raceboxConnected ? 0.3 : 0.05; 
+                const maxAcc = raceboxConnected ? 5 : 10; 
+
+                if ((crd.speed > minSpeed) || (crd.accuracy < maxAcc && distFinal > minDist)) {
+                    tripA += distFinal;
+                    tripB += distFinal;
                     updateUI();
                 }
             }
-            lastLat = crd.latitude; lastLon = crd.longitude;
+            
+            lastLat = crd.latitude; 
+            lastLon = crd.longitude;
+            lastAlt = crd.altitude; // Aggiorna ultima altitudine
         }
 
         // GPS Interno (fallback se RaceBox non connesso)
@@ -373,6 +389,7 @@
                 elResetBar.style.width = "0%";
             }, 3000);
         });
+
         document.getElementById('tripB-container').addEventListener('touchend', () => {
             clearTimeout(pressTimer);
             elResetBar.style.transition = "none";
@@ -391,14 +408,17 @@
         function flashElement(el, cls) {
             el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
         }
+
         function toggleDebug() {
             const p = document.getElementById('debug-panel');
             p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
         }
+
         function goFullscreen() {
             if (!document.fullscreenElement) document.documentElement.requestFullscreen();
             else document.exitFullscreen();
         }
+
         if ('wakeLock' in navigator) { navigator.wakeLock.request('screen'); }
     </script>
 </body>
