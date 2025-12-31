@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally TripMaster v8.1 - RaceBox Fix</title>
+    <title>Rally TripMaster v8.1 - Fluid Fix</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -77,7 +77,11 @@
     </div>
 
 <script>
+// Variabili REALI (I dati veri del GPS)
 let tripA = 0.0, tripB = 0.0;
+// Variabili VISIVE (Per l'animazione fluida del GPS interno)
+let visTripA = 0.0, visTripB = 0.0;
+
 let lastLat = null, lastLon = null, lastAlt = null;
 let updateTimestamps = [];
 let raceboxConnected = false;
@@ -148,6 +152,9 @@ async function toggleRaceBox() {
         document.getElementById('racebox-battery-row').style.display = 'block';
 
         lastLat = lastLon = lastAlt = null;
+        // Allineiamo subito le variabili visive per evitare salti
+        visTripA = tripA;
+        visTripB = tripB;
 
         tx.addEventListener('characteristicvaluechanged', e => {
             const data = new Uint8Array(e.target.value.buffer);
@@ -196,6 +203,8 @@ function handlePosition(pos) {
     document.getElementById('dbg-spd').innerText = crd.speed ? crd.speed.toFixed(2) : "0.00";
     document.getElementById('dbg-alt').innerText = crd.altitude ? crd.altitude.toFixed(1) : "N/A";
     document.getElementById('dbg-status').innerText = "FIX OK";
+    
+    // Aggiornamento velocità immediato (non serve fluidità qui, serve reattività)
     elSpeed.innerText = Math.max(0, (crd.speed || 0) * 3.6).toFixed(0);
 
     if (lastLat !== null && lastLon !== null) {
@@ -210,9 +219,19 @@ function handlePosition(pos) {
         document.getElementById('dbg-dist3d').innerText = distFinal.toFixed(4);
 
         if (crd.speed > 0.1 && distFinal < 50) {
+            // Aggiorniamo SEMPRE le variabili reali
             tripA += distFinal;
             tripB += distFinal;
-            updateUI();
+
+            // STRADA 1: RACEBOX (Diretto)
+            // Se Racebox è connesso, forziamo l'aggiornamento grafico immediato
+            if (raceboxConnected) {
+                visTripA = tripA;
+                visTripB = tripB;
+                updateUIRacebox(); 
+            }
+            // STRADA 2: GPS Interno (Non facciamo nulla qui)
+            // L'aggiornamento grafico avverrà nel loop "renderLoop" fluido
         }
     }
 
@@ -221,17 +240,56 @@ function handlePosition(pos) {
     lastAlt = crd.altitude;
 }
 
-function updateUI() {
+// Funzione dedicata aggiornamento grafico Racebox (Raw & Fast)
+function updateUIRacebox() {
     elTripA.innerText = Math.floor(tripA);
     elTripB.innerText = (tripB / 1000).toFixed(2);
 }
 
+// Funzione di reset manuale
 function handleTapResetA() {
     elLastReset.innerText = Math.floor(tripA);
     tripA = 0;
-    updateUI();
+    visTripA = 0; // Reset immediato anche della visuale per evitare animazioni strane
+    updateUIRacebox(); // Aggiorna subito
 }
 
+// --- MOTORE FLUIDITÀ PER GPS INTERNO ---
+// Questo loop gira 60 volte al secondo
+function renderLoop() {
+    // Se usiamo Racebox, non interpoliamo nulla, lasciamo fare a lui
+    if (!raceboxConnected) {
+        
+        // INTERPOLAZIONE FLUIDA TRIP A
+        // Calcoliamo la differenza tra dove siamo (visTripA) e dove dobbiamo arrivare (tripA)
+        let diffA = tripA - visTripA;
+        if (Math.abs(diffA) > 0.05) {
+            // Ci spostiamo del 10% della distanza ad ogni frame (effetto "scivolamento")
+            visTripA += diffA * 0.1;
+        } else {
+            visTripA = tripA; // Se siamo vicinissimi, scatta al valore esatto
+        }
+
+        // INTERPOLAZIONE FLUIDA TRIP B
+        let diffB = tripB - visTripB;
+        if (Math.abs(diffB) > 0.05) {
+            visTripB += diffB * 0.1;
+        } else {
+            visTripB = tripB;
+        }
+
+        // Aggiorna DOM con i valori "fluidi"
+        elTripA.innerText = Math.floor(visTripA);
+        elTripB.innerText = (visTripB / 1000).toFixed(2);
+    }
+
+    requestAnimationFrame(renderLoop);
+}
+
+// Avvia il motore grafico
+requestAnimationFrame(renderLoop);
+
+// --- GPS Start ---
 navigator.geolocation.watchPosition(
     pos => { if (!raceboxConnected) handlePosition(pos); },
     err => { if (!raceboxConnected) document.getElementById('dbg-status').innerText = "ERR: " + err.message; },
@@ -244,8 +302,10 @@ document.getElementById('tripB-container').addEventListener('touchstart', () => 
     setTimeout(() => {
         tripA = 0;
         tripB = 0;
+        visTripA = 0;
+        visTripB = 0;
         elLastReset.innerText = "";
-        updateUI();
+        updateUIRacebox();
         elResetBar.style.width = "0%";
     }, 3000);
 });
